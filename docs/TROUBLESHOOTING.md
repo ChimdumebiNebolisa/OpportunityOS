@@ -3,7 +3,8 @@
 ## `hermes` is not found after Windows install
 
 Open a new terminal. Verify `Get-Command hermes` and `hermes --version`. Hermes' installer changes the
-user PATH, which an existing shell does not inherit.
+user PATH, which an existing shell does not inherit. OpportunityOS also checks Hermes' documented
+per-user launcher location, but a new shell is still required for normal direct CLI use.
 
 ## MCP server does not connect
 
@@ -14,7 +15,8 @@ executable directly; it should wait for stdio input without printing application
 ## OAuth fails or expires
 
 Run `hermes auth add openai-codex` and complete device login again. Do not edit or copy `auth.json`.
-OpportunityOS cannot diagnose Hermes credentials and correctly reports OAuth as `GATED` locally.
+OpportunityOS invokes the redacted `hermes auth status openai-codex` command and never reads or
+prints the credential store. A failed or inconclusive check remains `GATED`.
 
 ## Discord bot is silent
 

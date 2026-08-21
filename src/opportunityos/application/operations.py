@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 import shutil
 import sqlite3
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -41,24 +44,195 @@ class OperationsService:
         }
 
     @staticmethod
-    def _command_version(command: str) -> dict[str, Any]:
-        executable = shutil.which(command)
-        if not executable:
-            return {"state": "GATED", "detail": f"{command} is not installed"}
+    def _hermes_executable() -> str | None:
+        """Resolve the supported Hermes launcher without relying on a refreshed shell PATH."""
+        executable = shutil.which("hermes")
+        if executable:
+            return executable
+
+        candidates: list[Path] = []
+        hermes_home = os.environ.get("HERMES_HOME")
+        if hermes_home:
+            home = Path(hermes_home).expanduser()
+            candidates.extend(
+                [
+                    home / "hermes-agent" / "bin" / "hermes.exe",
+                    home / "hermes-agent" / "venv" / "bin" / "hermes",
+                    home / "hermes-agent" / "bin" / "hermes",
+                ]
+            )
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if local_app_data:
+            candidates.append(
+                Path(local_app_data) / "hermes" / "hermes-agent" / "bin" / "hermes.exe"
+            )
+        candidates.append(Path.home() / ".local" / "bin" / "hermes")
+        return next((str(path) for path in candidates if path.is_file()), None)
+
+    @staticmethod
+    def _run_hermes(
+        executable: str, arguments: list[str]
+    ) -> subprocess.CompletedProcess[str] | None:
         try:
-            completed = subprocess.run(
-                [executable, "--version"],
+            return subprocess.run(
+                [executable, *arguments],
                 check=False,
                 capture_output=True,
                 text=True,
-                timeout=10,
+                timeout=30,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
         except (OSError, subprocess.TimeoutExpired):
+            return None
+
+    @staticmethod
+    def _process_running(process_id: int) -> bool:
+        if process_id < 1:
+            return False
+        if os.name == "nt":
+            import ctypes
+
+            handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, process_id)
+            if not handle:
+                return False
+            ctypes.windll.kernel32.CloseHandle(handle)
+            return True
+        try:
+            os.kill(process_id, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        return True
+
+    @classmethod
+    def _hermes_gateway_running(cls) -> bool:
+        homes: list[Path] = []
+        if hermes_home := os.environ.get("HERMES_HOME"):
+            homes.append(Path(hermes_home).expanduser())
+        if local_app_data := os.environ.get("LOCALAPPDATA"):
+            homes.append(Path(local_app_data) / "hermes")
+        homes.append(Path.home() / ".hermes")
+        for home in homes:
+            pid_file = home / "gateway.pid"
+            if not pid_file.is_file():
+                continue
+            try:
+                raw = pid_file.read_text(encoding="utf-8").strip()
+                payload = json.loads(raw)
+                process_id = int(payload["pid"] if isinstance(payload, dict) else raw)
+            except (KeyError, TypeError, ValueError, OSError, json.JSONDecodeError):
+                continue
+            if cls._process_running(process_id):
+                return True
+        return False
+
+    @classmethod
+    def _command_version(cls, command: str) -> dict[str, Any]:
+        executable = cls._hermes_executable() if command == "hermes" else shutil.which(command)
+        if not executable:
+            return {"state": "GATED", "detail": f"{command} is not installed"}
+        completed = cls._run_hermes(executable, ["--version"])
+        if completed is None:
             return {"state": "FAIL", "detail": f"{command} version check failed"}
         output = (completed.stdout or completed.stderr).strip().splitlines()
         return {
             "state": "PASS" if completed.returncode == 0 else "FAIL",
             "detail": output[0] if output else f"{command} returned {completed.returncode}",
+        }
+
+    @classmethod
+    def _hermes_integrations(cls, executable: str | None) -> dict[str, dict[str, str]]:
+        unavailable = {
+            "state": "GATED",
+            "detail": "Hermes is unavailable, so this state could not be checked.",
+        }
+        if executable is None:
+            return {
+                "codex_oauth": dict(unavailable),
+                "opportunityos_mcp": dict(unavailable),
+                "discord_configuration": dict(unavailable),
+                "discord_gateway": dict(unavailable),
+                "live_verification": dict(unavailable),
+            }
+
+        gateway_running = cls._hermes_gateway_running()
+        # Hermes startup can take several seconds on Windows. These independent,
+        # read-only probes run together so status latency is bounded by one startup.
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            auth_future = executor.submit(
+                cls._run_hermes, executable, ["auth", "status", "openai-codex"]
+            )
+            mcp_future = executor.submit(cls._run_hermes, executable, ["mcp", "list"])
+            gateway_future = (
+                None
+                if gateway_running
+                else executor.submit(cls._run_hermes, executable, ["gateway", "list"])
+            )
+            auth = auth_future.result()
+            mcp = mcp_future.result()
+            gateway = None if gateway_future is None else gateway_future.result()
+        auth_output = "" if auth is None else f"{auth.stdout}\n{auth.stderr}".lower()
+        codex_oauth = (
+            {"state": "PASS", "detail": "Hermes reports OpenAI Codex OAuth logged in."}
+            if auth is not None and auth.returncode == 0 and "logged in" in auth_output
+            else {
+                "state": "GATED",
+                "detail": "Run `hermes auth status openai-codex`; credentials are not inspected.",
+            }
+        )
+
+        mcp_output = "" if mcp is None else f"{mcp.stdout}\n{mcp.stderr}".lower()
+        opportunityos_enabled = any(
+            re.search(r"\bopportunityos\b", line) and re.search(r"\benabled\b", line)
+            for line in mcp_output.splitlines()
+        )
+        opportunityos_mcp = (
+            {"state": "PASS", "detail": "Hermes reports the OpportunityOS MCP server enabled."}
+            if mcp is not None and mcp.returncode == 0 and opportunityos_enabled
+            else {
+                "state": "GATED",
+                "detail": "Verify configuration with `hermes mcp list`.",
+            }
+        )
+
+        gateway_output = "" if gateway is None else f"{gateway.stdout}\n{gateway.stderr}"
+        gateway_running = gateway_running or bool(
+            gateway is not None
+            and gateway.returncode == 0
+            and re.search(r"\bPID\s+\d+\b", gateway_output)
+        )
+        discord_gateway = (
+            {
+                "state": "PASS",
+                "detail": (
+                    "A Hermes gateway process is running; this does not prove Discord routing."
+                ),
+            }
+            if gateway_running
+            else {
+                "state": "GATED",
+                "detail": "No running Hermes gateway was reported by `hermes gateway list`.",
+            }
+        )
+        return {
+            "codex_oauth": codex_oauth,
+            "opportunityos_mcp": opportunityos_mcp,
+            "discord_configuration": {
+                "state": "GATED",
+                "detail": (
+                    "Private Discord token and allowlist configuration is not inspected; "
+                    "verify it in Hermes."
+                ),
+            },
+            "discord_gateway": discord_gateway,
+            "live_verification": {
+                "state": "GATED",
+                "detail": (
+                    "Status performs no external message; record a controlled Hermes/Discord "
+                    "round trip separately."
+                ),
+            },
         }
 
     def status(self) -> dict[str, Any]:
@@ -87,7 +261,9 @@ class OperationsService:
                 ).all()
             ]
         findings = audit_public_repository(self.context.settings.repository_root)
+        hermes_executable = self._hermes_executable()
         hermes = self._command_version("hermes")
+        integrations = self._hermes_integrations(hermes_executable)
         return {
             "database": {
                 "path": str(self.context.database.path),
@@ -103,19 +279,7 @@ class OperationsService:
                 "finding_count": len(findings),
             },
             "hermes": hermes,
-            "codex_oauth": {
-                "state": "GATED",
-                "detail": (
-                    "Verify interactively with `hermes model`; credentials are never "
-                    "inspected by OpportunityOS."
-                ),
-            },
-            "discord_gateway": {
-                "state": "GATED",
-                "detail": (
-                    "Verify with `hermes gateway status` after configuring the numeric allowlist."
-                ),
-            },
+            **integrations,
             "vision": {"state": "GATED", "detail": "Verify in the selected Hermes model."},
             "web_search": {"state": "GATED", "detail": "Verify Hermes DDGS or configured search."},
             "github": {
@@ -123,7 +287,7 @@ class OperationsService:
                 "detail": "Optional authenticated check requires private credentials.",
             },
             "scouts": last_scouts,
-            "continuous_operation": False,
+            "continuous_operation": integrations["discord_gateway"]["state"] == "PASS",
         }
 
     def doctor(self) -> dict[str, Any]:

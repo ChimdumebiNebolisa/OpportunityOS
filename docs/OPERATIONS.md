@@ -3,8 +3,12 @@
 ## Health and location
 
 Run `opportunityos status` for data paths, database integrity, privacy audit, integration gates, and
-recent scout state. `opportunityos doctor` fails only on blocking local checks; unconfigured Hermes,
-Discord, OAuth, and GitHub remain `GATED` rather than being reported as failures or false successes.
+recent scout state. Hermes discovery checks PATH first and then its documented per-user installation
+locations, so a shell opened before the installer updated PATH still reports the installed runtime.
+The status separates Hermes installation, Codex OAuth, OpportunityOS MCP configuration, private
+Discord configuration, gateway process state, and an external live round trip. `opportunityos
+doctor` fails only on blocking local checks; unverified external states remain `GATED` rather than
+being reported as failures or false successes.
 
 ## Backup and restore
 
