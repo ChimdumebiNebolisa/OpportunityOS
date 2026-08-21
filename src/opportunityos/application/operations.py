@@ -92,10 +92,13 @@ class OperationsService:
         if os.name == "nt":
             import ctypes
 
-            handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, process_id)
+            windll = getattr(ctypes, "windll", None)
+            if windll is None:
+                return False
+            handle = windll.kernel32.OpenProcess(0x1000, False, process_id)
             if not handle:
                 return False
-            ctypes.windll.kernel32.CloseHandle(handle)
+            windll.kernel32.CloseHandle(handle)
             return True
         try:
             os.kill(process_id, 0)
