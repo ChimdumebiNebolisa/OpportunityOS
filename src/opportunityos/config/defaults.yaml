@@ -1,0 +1,32 @@
+schema_version: "1"
+timezone: "America/Chicago"
+default_action_minutes: 45
+retention_days: 30
+max_attachment_bytes: 33554432
+max_pdf_pages: 100
+max_web_bytes: 5242880
+web_timeout_seconds: 15
+scoring:
+  ruleset_version: "1.0"
+  weights:
+    strategic_upside: 20
+    profile_fit: 15
+    recognizable_signal: 10
+    tangible_output: 10
+    access_network: 10
+    financial_support: 5
+    career_optionality: 10
+    outcome_plausibility: 10
+    preference_alignment: 10
+  apply_threshold: 75
+  maybe_threshold: 55
+  apply_confidence: 0.70
+scouts:
+  max_queries: 8
+  max_candidate_pages: 30
+  max_deep_evaluations: 10
+  max_model_calls: 20
+  max_duration_seconds: 900
+  max_notifications: 5
+  daily_model_calls: 80
+

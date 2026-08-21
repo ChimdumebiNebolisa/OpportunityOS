@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpportunityOS Profile Sync"
+  short_description: "Import evidence and reconcile profile truth"
+  default_prompt: "Use $opportunityos-profile-sync to import this profile evidence safely."

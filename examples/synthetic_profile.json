@@ -1,0 +1,18 @@
+{
+  "export_version": "1.0",
+  "generated_at": "2026-08-21T12:00:00Z",
+  "facts": [
+    {
+      "field_path": "identity.citizenship",
+      "value": "US",
+      "confidence": 1.0,
+      "supporting_text": "Synthetic fixture only"
+    },
+    {
+      "field_path": "career.objective",
+      "value": "Synthetic public-interest AI research",
+      "confidence": 0.8,
+      "supporting_text": "Synthetic fixture only"
+    }
+  ]
+}

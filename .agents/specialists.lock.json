@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "orchestrator": {
+    "name": "mitch-bootstrap",
+    "contentSha256": "395da050d9f448323fb955f6a13ec564ace7bee2fb97e388188b151daac8d056"
+  },
+  "openSpec": {
+    "package": "@fission-ai/openspec",
+    "version": "1.10.0"
+  },
+  "selected": [
+    {
+      "name": "writing-for-agents",
+      "revision": "0ab1b63a410a03d3627979a109c8695de27af954",
+      "treeSha256": "88e105b6177773755257b87ac1c312f3f3806332acf916c7e41548842df8623",
+      "owns": "repository agent guidance"
+    },
+    {
+      "name": "codebase-design",
+      "revision": "0ab1b63a410a03d3627979a109c8695de27af954",
+      "treeSha256": "5287602fb0301a4d43007ae2ab4f8969c88c94a0ed0ebc64c4230e174ee28c32",
+      "owns": "application, domain, persistence, and external seams"
+    },
+    {
+      "name": "frontend-design",
+      "revision": "f6656c1256d5a8adfa37db9110046ef20bac644c",
+      "treeSha256": "f14be5cabf8739d90029627ad810f854d3dcd817ff1dc8332fb4be1f79e3f115",
+      "owns": "Hermes Desktop conversational product surfaces and generated artifact presentation"
+    },
+    {
+      "name": "vibe-security",
+      "revision": "850938f20f6915e7c3688d85c0a838f7909c87bb",
+      "treeSha256": "17c9bfc1c53bde7b59a16793917ed4a7a13d2fc0e274b8dfb8628c50b6b3c051",
+      "owns": "private data, files, database, secrets, authentication configuration, and LLM boundaries"
+    },
+    {
+      "name": "code-review-expert",
+      "revision": "08b6572ef108f22d4e8a3ecf9182a4bbef097744",
+      "treeSha256": "50265a2f99083b178969cb94d1d0dc60773ce60156c2de0e492b577afe37fd0e",
+      "owns": "read-only final product review"
+    }
+  ]
+}

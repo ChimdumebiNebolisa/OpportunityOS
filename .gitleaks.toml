@@ -1,0 +1,20 @@
+title = "OpportunityOS public-repository scan"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated dependency, test, build, and visual-verification artifacts"
+paths = [
+  '''(^|/)\.venv/''',
+  '''(^|/)\.hypothesis/''',
+  '''(^|/)\.mypy_cache/''',
+  '''(^|/)\.pytest_cache/''',
+  '''(^|/)\.ruff_cache/''',
+  '''(^|/)\.playwright-cli/''',
+  '''(^|/)dist/''',
+  '''(^|/)build/''',
+  '''(^|/)output/''',
+  '''(^|/)htmlcov/''',
+  '''(^|/)coverage\.xml$''',
+]

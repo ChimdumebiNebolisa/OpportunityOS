@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpportunityOS Evaluate"
+  short_description: "Score an opportunity from verified evidence"
+  default_prompt: "Use $opportunityos-evaluate to assess and score this verified opportunity."

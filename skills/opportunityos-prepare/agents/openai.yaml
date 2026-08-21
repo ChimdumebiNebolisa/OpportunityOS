@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpportunityOS Prepare"
+  short_description: "Draft a grounded private application packet"
+  default_prompt: "Use $opportunityos-prepare to prepare a grounded application packet."

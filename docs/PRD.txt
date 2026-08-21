@@ -1,0 +1,2977 @@
+OPPORTUNITYOS
+PRODUCT REQUIREMENTS DOCUMENT
+Version 1.0
+
+Status: Final build specification for v1
+Date: August 21, 2026
+Repository: https://github.com/ChimdumebiNebolisa/OpportunityOS
+Repository visibility: Public
+License: MIT
+Primary deployment target: Windows 11, single user, local-first
+Primary agent runtime: Hermes Agent
+Primary model access: OpenAI Codex through ChatGPT OAuth
+Primary interfaces: Hermes Desktop and private Discord direct messages
+
+======================================================================
+0. DOCUMENT PURPOSE
+======================================================================
+
+This document is the build-grade product specification for OpportunityOS.
+It is written for an engineering agent or developer who must implement the
+system end to end in the public repository listed above.
+
+Normative terms:
+
+- MUST indicates a non-negotiable requirement.
+- MUST NOT indicates a prohibited implementation or behavior.
+- SHOULD indicates the default choice unless a documented constraint
+  requires another approach.
+- MAY indicates an optional implementation choice.
+
+The implementer must use current official Hermes documentation at build time.
+Hermes changes quickly. Where this PRD and current official documentation
+conflict on a low-level command or configuration key, current official
+Hermes documentation controls. Product behavior, safety invariants, data
+boundaries, and acceptance criteria in this PRD remain controlling.
+
+======================================================================
+1. EXECUTIVE SUMMARY
+======================================================================
+
+OpportunityOS is a local-first personal opportunity intelligence and
+execution system. It continuously discovers high-value opportunities,
+accepts opportunities manually through links, screenshots, files, and text,
+maintains an evidence-backed current model of the user, evaluates eligibility
+and strategic value, ranks opportunities against each other, prepares
+application materials, and tracks execution through completion.
+
+Hermes handles ambiguous and agentic work:
+
+- searching the web;
+- navigating official pages;
+- interpreting screenshots, PDFs, posts, and emails;
+- extracting candidate facts;
+- producing structured subjective assessments;
+- conducting profile-aware discovery;
+- preparing grounded application drafts;
+- interacting through Hermes Desktop and Discord;
+- running scheduled scouts through Hermes cron.
+
+OpportunityOS conventional code handles consistency and truth:
+
+- schema validation;
+- provenance;
+- versioning;
+- source authority;
+- conflict detection;
+- human reconciliation;
+- deterministic eligibility rules;
+- deterministic score calculation;
+- queue calculation;
+- lifecycle transitions;
+- audit history;
+- privacy boundaries;
+- cost limits.
+
+The core rule is:
+
+AN LLM MAY PROPOSE FACTS AND JUDGMENTS. AN LLM MAY NOT DIRECTLY MUTATE
+CANONICAL TRUTH.
+
+The primary user experience is conversational. The user should be able to
+send a screenshot from a phone, paste a URL from a computer, ask what to work
+on with 30 minutes available, reconcile a profile conflict, or prepare an
+application without operating a custom dashboard.
+
+======================================================================
+2. PROBLEM DEFINITION
+======================================================================
+
+The user encounters scholarships, fellowships, grants, research programs,
+founder programs, competitions, selective technical programs, hackathons,
+and other career-accelerating opportunities across many channels.
+
+The current process has repeated friction:
+
+1. discover an opportunity;
+2. find the official source;
+3. verify that it is current and open;
+4. determine eligibility;
+5. compare it against the user's profile and goals;
+6. decide whether the opportunity is worth the effort;
+7. identify the strongest evidence and projects to use;
+8. prepare application materials;
+9. remember the deadline;
+10. submit and follow up;
+11. prevent rediscovery and duplicated work.
+
+The user discovers opportunities faster than they can evaluate and execute
+them. The central optimization target is therefore:
+
+MAXIMIZE EXPECTED CAREER VALUE PER UNIT OF USER TIME.
+
+The product must reduce evaluation overhead and increase completion of the
+few opportunities that matter most. It must avoid becoming another generic
+task manager, another indiscriminate opportunity scraper, or another static
+profile file.
+
+======================================================================
+3. PRODUCT OBJECTIVE
+======================================================================
+
+OpportunityOS must answer five practical questions reliably:
+
+1. What opportunities exist for this user right now?
+2. Is the user eligible based on verified information?
+3. Is the opportunity strategically worth pursuing?
+4. What is the highest-value action the user can take with the time available?
+5. What can the system prepare so the user only performs the irreducibly human
+   parts?
+
+The system succeeds when the user can:
+
+- forward a screenshot or file from a phone and receive a grounded decision;
+- paste a URL and receive an official-source verification and evaluation;
+- ask "what should I work on?" and receive one defensible next action;
+- update a changing profile without corrupting history;
+- see and resolve conflicting information;
+- prepare an application using only evidence-backed claims;
+- trust that private profile and application data cannot enter the public
+  repository through normal operation.
+
+======================================================================
+4. TARGET USER AND DEPLOYMENT MODEL
+======================================================================
+
+4.1 Primary user
+
+The v1 product is designed for one user on one local installation. The public
+repository should remain reusable by other developers, but multi-user SaaS
+requirements are outside v1.
+
+4.2 Primary environment
+
+- Windows 11 native is the required acceptance environment.
+- Cross-platform compatibility is desirable where it does not increase scope.
+- Hermes Desktop is the primary computer interface.
+- Hermes' native Discord gateway is the mobile interface.
+- The Hermes gateway must run as a long-lived local process for Discord and
+  scheduled scouts.
+- If the computer is asleep or offline, immediate Discord processing and
+  scheduled discovery are unavailable. The product must expose this honestly.
+
+4.3 Public code and private state
+
+The repository is public by final user decision.
+
+Public repository contents may include:
+
+- source code;
+- Hermes skills;
+- MCP server code;
+- schemas and migrations;
+- deterministic rules;
+- synthetic test fixtures;
+- generic example profiles;
+- documentation;
+- configuration templates;
+- CI workflows;
+- MIT license.
+
+Private runtime state MUST live outside the Git checkout by default.
+Use platformdirs or an equivalent cross-platform mechanism.
+
+Required default paths:
+
+- Windows data root: %LOCALAPPDATA%\OpportunityOS
+- Windows config root: %APPDATA%\OpportunityOS, or the platformdirs equivalent
+- Repository: any user-selected development directory
+
+Private runtime state includes:
+
+- SQLite databases and backups;
+- profile observations and canonical facts;
+- ChatGPT profile imports;
+- resumes, transcripts, screenshots, PDFs, and email content;
+- application drafts and submission history;
+- raw and extracted source content;
+- logs containing operational metadata;
+- Discord attachment cache;
+- local configuration overrides.
+
+Secrets MUST remain in Hermes-supported credential locations or a private
+OpportunityOS configuration directory. Secrets MUST NOT be copied into the
+repository.
+
+======================================================================
+5. V1 SCOPE
+======================================================================
+
+5.1 Required opportunity types
+
+Autonomous discovery must support:
+
+- scholarships;
+- fellowships;
+- research programs and research assistant opportunities;
+- grants and technical founder programs;
+- competitions;
+- hackathons and selective technical build programs;
+- high-upside student or early-career programs;
+- other opportunities manually classified by the user.
+
+Manual ingestion and evaluation may support jobs and internships. A dedicated
+ordinary job scraper is excluded from v1. The architecture must allow an
+existing job feed to be added later.
+
+5.2 Required input types
+
+OpportunityOS must accept:
+
+- URL;
+- plain text;
+- screenshot or image;
+- PDF;
+- common document file;
+- GitHub URL;
+- forwarded or copied post text;
+- voice message after Hermes transcription;
+- structured profile import.
+
+A naked URL or naked attachment sent through the private Discord DM must
+default to opportunity intake unless the content clearly indicates another
+intent.
+
+5.3 Required profile sources
+
+Required v1 adapters:
+
+- explicit user statements;
+- GitHub public or authenticated metadata;
+- local documents and files;
+- structured ChatGPT profile snapshot import;
+- public web evidence;
+- OpportunityOS' own decision and application history.
+
+Optional adapters that must not block v1:
+
+- Gmail read-only import;
+- Google Drive read-only import;
+- Calendar deadline synchronization;
+- university portal or transcript integration;
+- publication databases beyond public web and GitHub links.
+
+5.4 Required outputs
+
+For each evaluated opportunity, the system must provide:
+
+- title and organization;
+- official source and direct application link;
+- current status;
+- deadline and timezone when available;
+- eligibility result;
+- hard failures or unknown requirements;
+- APPLY, MAYBE, PASS, or REVIEW REQUIRED decision;
+- value score and confidence;
+- concise rationale;
+- strongest supporting profile evidence;
+- main weakness or risk;
+- estimated total effort;
+- estimated next-action effort;
+- queue position;
+- recommended next action.
+
+======================================================================
+6. EXPLICIT V1 NON-GOALS
+======================================================================
+
+The implementer MUST NOT build the following for v1:
+
+- a custom web dashboard;
+- a custom mobile application;
+- a second Discord client or Discord bot framework parallel to Hermes;
+- Telegram, WhatsApp, or iMessage integrations;
+- a multi-user hosted service;
+- cloud hosting as a required dependency;
+- Kubernetes, Kafka, Redis, or microservices;
+- a vector database without a measured requirement;
+- automatic application submission;
+- automatic email sending;
+- automatic direct messages to recruiters or researchers;
+- automatic purchase of API credits or paid services;
+- a full resume design or typesetting system;
+- a general-purpose life operating system;
+- indiscriminate scraping of ordinary job boards;
+- unsupported scraping of private ChatGPT history or ChatGPT memory;
+- direct modification of Hermes source code when an external skill, MCP tool,
+  configuration, or adapter can provide the capability.
+
+======================================================================
+7. SYSTEM INVARIANTS
+======================================================================
+
+These invariants are mandatory and must be enforced in code and tests.
+
+I-01. LLM proposal boundary
+An LLM may create candidate observations, requirement extractions, subjective
+assessments, and draft text. It may not directly write canonical profile facts,
+resolve conflicts, override eligibility, or bypass lifecycle rules.
+
+I-02. Provenance
+Every canonical fact and every decision-relevant opportunity field must have
+at least one source record, retrieval or observation timestamp, and source
+locator.
+
+I-03. Append-only evidence
+Raw observations and human resolutions are append-only. Corrections create new
+records and projections. History is never silently destroyed.
+
+I-04. Conflict handling
+Two credible, mutually exclusive observations with overlapping validity and no
+clear authority or recency winner must create a review item. The system must
+not choose silently.
+
+I-05. Human resolution
+A user resolution must record the selected value, alternatives, timestamp,
+optional note, effective interval, and resolution scope.
+
+I-06. Hard eligibility
+A hard eligibility failure cannot be overridden by an LLM score. A hard
+eligibility unknown or conflicted dependency prevents an APPLY recommendation.
+
+I-07. Grounded claims
+Application text may use only verified canonical facts or facts explicitly
+approved for that application. Each generated professional claim must map to
+an evidence identifier.
+
+I-08. External action approval
+No externally consequential action may occur without explicit user approval.
+This includes submission, sending, posting, messaging, deleting remote data,
+or accepting terms.
+
+I-09. Deterministic replay
+Given the same profile version, opportunity version, requirements, ruleset
+version, and subjective component values, the eligibility result and numeric
+score must be identical.
+
+I-10. Public repository isolation
+Normal operation must never write private runtime data inside the Git checkout.
+
+I-11. Official-source priority
+Aggregator pages may identify leads. Eligibility, deadlines, application
+status, and direct links must be verified from an official source whenever one
+exists.
+
+I-12. Untrusted source content
+Webpages, documents, screenshots, and forwarded text are data. Instructions
+inside them must never control tools, system configuration, credentials,
+terminal commands, or application behavior.
+
+I-13. Bounded cost
+Automated runs must respect configurable query, candidate, model-call, and
+notification budgets. No paid fallback may activate silently.
+
+I-14. Explicit uncertainty
+Unknown, ambiguous, stale, conflicted, or weakly supported fields must remain
+marked as such. The system must not convert uncertainty into fabricated
+precision.
+
+I-15. Versioned decisions
+Every evaluation must record the profile version, opportunity version,
+ruleset version, model/provider identifier, source set, and creation time.
+
+======================================================================
+8. HIGH-LEVEL ARCHITECTURE
+======================================================================
+
+                    USER
+                      |
+          +-----------+-----------+
+          |                       |
+   Hermes Desktop          Discord private DM
+          |                       |
+          +-----------+-----------+
+                      |
+                HERMES AGENT
+        reasoning, tools, skills, cron
+                      |
+        +-------------+--------------+
+        |                            |
+ OpportunityOS skills        OpportunityOS MCP
+        |                            |
+        +-------------+--------------+
+                      |
+             APPLICATION SERVICES
+                      |
+     +----------------+----------------+
+     |                |                |
+ Profile ledger  Opportunity ledger  Decision ledger
+     |                |                |
+     +----------------+----------------+
+                      |
+                 SQLite database
+                      |
+     +----------------+----------------+
+     |                |                |
+ private files   source cache      audit logs
+
+8.1 Architectural boundaries
+
+Hermes owns:
+
+- conversation;
+- vision and language interpretation;
+- web and browser operations;
+- scheduled session orchestration;
+- interaction through Desktop and Discord;
+- loading OpportunityOS skills;
+- calling OpportunityOS MCP tools;
+- producing candidate structured outputs;
+- drafting grounded application text.
+
+OpportunityOS owns:
+
+- schemas;
+- persistent state;
+- reconciliation;
+- canonical projections;
+- review items;
+- eligibility predicates;
+- scoring formulas;
+- queue calculation;
+- action and lifecycle state;
+- privacy paths;
+- audit events;
+- backup and export.
+
+8.2 Integration method
+
+OpportunityOS must expose:
+
+1. A Python package with a stable application service layer.
+2. A command-line interface for setup, debugging, recovery, and tests.
+3. A local MCP server that exposes typed tools to Hermes.
+4. Project-owned Hermes skills stored in the repository and registered as an
+   external skill directory or installed through a deterministic setup step.
+
+The MCP server should use stdio unless a measured need requires a local HTTP
+service. A persistent custom server process is unnecessary for v1.
+
+8.3 Hermes runtime choice
+
+Use Hermes' standard agent runtime with the OpenAI Codex provider authenticated
+through ChatGPT OAuth. Do not require the optional Codex app-server runtime for
+v1. The optional runtime may be tested behind a feature flag, but the product
+must work without it.
+
+The implementation agent used to build OpportunityOS is separate from the
+runtime architecture. Codex may build the project while OpportunityOS itself
+runs through Hermes.
+
+======================================================================
+9. TECHNOLOGY BASELINE
+======================================================================
+
+Required baseline:
+
+- Python 3.11 or newer, aligned with the supported Hermes environment;
+- uv for dependency and environment management;
+- Pydantic v2 for schemas and validation;
+- SQLAlchemy 2.x for persistence;
+- Alembic for migrations;
+- SQLite with foreign keys enabled and WAL mode;
+- Typer or an equivalent typed CLI framework;
+- MCP Python SDK compatible with current Hermes;
+- httpx for safe HTTP retrieval;
+- a deterministic text extraction library such as trafilatura or readability;
+- Playwright or Hermes browser tooling as a dynamic-page fallback;
+- pypdf or PyMuPDF for text PDFs;
+- python-docx for DOCX imports if DOCX is accepted;
+- pytest;
+- Hypothesis for property tests on reconciliation and scoring;
+- Ruff for linting and formatting;
+- mypy or Pyright in strict mode;
+- pre-commit;
+- Gitleaks or an equivalent secret scanner.
+
+The implementation must avoid runtime dependencies on paid hosted databases,
+queues, search APIs, or proprietary vector stores.
+
+======================================================================
+10. REPOSITORY STRUCTURE
+======================================================================
+
+The final repository should resemble:
+
+OpportunityOS/
+  AGENTS.md
+  README.md
+  LICENSE
+  SECURITY.md
+  PRIVACY.md
+  CONTRIBUTING.md
+  pyproject.toml
+  uv.lock
+  .gitignore
+  .env.example
+  .pre-commit-config.yaml
+  src/
+    opportunityos/
+      __init__.py
+      cli/
+      config/
+      domain/
+        profile/
+        opportunity/
+        eligibility/
+        scoring/
+        review/
+        application/
+        lifecycle/
+      application/
+      adapters/
+        github/
+        web/
+        files/
+        chatgpt_import/
+        hermes/
+      infrastructure/
+        db/
+        storage/
+        logging/
+        backup/
+      mcp/
+  skills/
+    opportunityos-intake/
+    opportunityos-profile-sync/
+    opportunityos-scout/
+    opportunityos-evaluate/
+    opportunityos-review/
+    opportunityos-prepare/
+  migrations/
+  tests/
+    unit/
+    integration/
+    contract/
+    e2e/
+    fixtures/
+  docs/
+    PRD.txt
+    ARCHITECTURE.md
+    DATA_MODEL.md
+    SCORING.md
+    HERMES_SETUP.md
+    DISCORD_SETUP.md
+    PROFILE_IMPORT.md
+    OPERATIONS.md
+    THREAT_MODEL.md
+    TROUBLESHOOTING.md
+    COMPATIBILITY.md
+    RELEASE_CHECKLIST.md
+  scripts/
+    setup.ps1
+    setup.sh
+    audit_public_repo.py
+    seed_synthetic_demo.py
+  examples/
+    synthetic_profile.json
+    synthetic_opportunities/
+  .github/
+    workflows/
+      ci.yml
+      security.yml
+
+No runtime database, user profile, private attachment, or generated application
+packet may be stored under this tree by default.
+
+======================================================================
+11. CONFIGURATION MODEL
+======================================================================
+
+11.1 Public defaults
+
+The repository may include safe generic defaults:
+
+- score weights;
+- threshold defaults;
+- opportunity taxonomy;
+- source authority templates;
+- scout categories;
+- file size limits;
+- retention defaults;
+- synthetic examples.
+
+11.2 Private local configuration
+
+Private configuration must include:
+
+- user timezone;
+- private data path;
+- GitHub username and authentication method;
+- Discord user ID allowlist;
+- notification schedule;
+- scout budgets;
+- user-specific score weights and thresholds;
+- source adapter enablement;
+- retention overrides;
+- optional model choices;
+- user-specific opportunity filters.
+
+11.3 Configuration precedence
+
+Required order from highest to lowest:
+
+1. explicit command option;
+2. private local configuration;
+3. environment variable for secrets or deployment-specific values;
+4. public repository defaults.
+
+Secrets must not be accepted in public YAML examples except as placeholders.
+
+11.4 Compatibility detection
+
+OpportunityOS setup and doctor commands must inspect the installed Hermes
+version and verify required capabilities:
+
+- Desktop availability or local Hermes session;
+- MCP support;
+- external skill directory or skill installation path;
+- Discord gateway and attachment handling;
+- cron;
+- OpenAI Codex provider;
+- vision-capable model;
+- configured web-search path.
+
+Low-level commands must be derived from current official Hermes documentation,
+not copied permanently from stale assumptions.
+
+======================================================================
+12. CORE DATA MODEL
+======================================================================
+
+Use UUID identifiers, UTC timestamps, explicit effective intervals, and SHA-256
+content hashes. All foreign keys must be enforced.
+
+12.1 SourceRecord
+
+Represents the origin of an observation or opportunity field.
+
+Required fields:
+
+- id;
+- source_type;
+- source_locator;
+- display_name;
+- official_status: official, unofficial, unknown;
+- retrieved_at;
+- published_at when available;
+- content_hash;
+- mime_type;
+- local_artifact_path when retained;
+- trust_class;
+- metadata JSON;
+- created_at.
+
+Source types include:
+
+- user_statement;
+- github_api;
+- official_webpage;
+- unofficial_webpage;
+- local_document;
+- chatgpt_snapshot;
+- email_import;
+- opportunityos_history;
+- model_inference.
+
+12.2 Observation
+
+Represents a candidate assertion extracted from a source.
+
+Required fields:
+
+- id;
+- subject_type;
+- subject_id or profile subject path;
+- field_path;
+- typed_value JSON;
+- assertion_kind: reported, observed, inferred;
+- source_id;
+- evidence_locator or short evidence span;
+- extraction_confidence;
+- effective_from;
+- effective_until;
+- observed_at;
+- extractor_model;
+- extraction_schema_version;
+- status: pending, accepted, superseded, rejected, conflicted;
+- created_at.
+
+12.3 CanonicalFact
+
+Represents the current trusted projection for a profile field.
+
+Required fields:
+
+- id;
+- field_path;
+- typed_value JSON;
+- value_type;
+- verification_status;
+- confidence;
+- effective_from;
+- effective_until;
+- selected_observation_ids;
+- resolution_id when applicable;
+- projection_version;
+- updated_at.
+
+CanonicalFact is derived state. It may be rebuilt from observations,
+resolutions, and rules.
+
+12.4 ReviewItem
+
+Required fields:
+
+- id;
+- review_type: conflict, stale, unverified, ambiguous, missing, possible_merge,
+  source_failure, auth_failure;
+- subject_type;
+- subject_id or field_path;
+- severity;
+- candidate_ids;
+- explanation;
+- downstream_impact JSON;
+- status: open, deferred, resolved, dismissed;
+- created_at;
+- resolved_at;
+- resolution_id.
+
+12.5 HumanResolution
+
+Required fields:
+
+- id;
+- review_item_id;
+- action;
+- selected_candidate_id or entered_value;
+- alternatives_considered;
+- note;
+- effective_from;
+- effective_until;
+- scope: until_newer_evidence, fixed_interval, permanent_until_user_change;
+- resolved_by;
+- resolved_at.
+
+12.6 Opportunity
+
+Required fields:
+
+- id;
+- canonical_title;
+- organization;
+- opportunity_type;
+- cycle or year;
+- canonical_url;
+- application_url;
+- location;
+- delivery_mode;
+- compensation_or_award JSON;
+- deadline_at;
+- deadline_timezone;
+- open_status;
+- last_verified_at;
+- lifecycle_state;
+- source_completeness;
+- created_at;
+- updated_at.
+
+12.7 OpportunityRequirement
+
+Required fields:
+
+- id;
+- opportunity_id;
+- requirement_type;
+- normalized_predicate JSON;
+- hard_or_soft;
+- extracted_text;
+- source_id;
+- evidence_locator;
+- extraction_confidence;
+- status: verified, ambiguous, missing, superseded;
+- ruleset_version;
+- created_at.
+
+12.8 EligibilityCheck
+
+Required fields:
+
+- id;
+- opportunity_id;
+- requirement_id;
+- profile_fact_ids;
+- result: pass, fail, unknown, conflicted, not_applicable;
+- deterministic_reason_code;
+- explanation;
+- evaluated_at;
+- eligibility_ruleset_version.
+
+12.9 SubjectiveAssessment
+
+Required fields:
+
+- id;
+- opportunity_id;
+- dimension;
+- value from 0 to 10;
+- rationale;
+- supporting_fact_ids;
+- source_ids;
+- confidence;
+- model_provider;
+- model_id;
+- prompt_version;
+- created_at.
+
+12.10 Evaluation
+
+Required fields:
+
+- id;
+- opportunity_id;
+- profile_projection_version;
+- opportunity_version;
+- eligibility_summary;
+- raw_value_score;
+- effort_penalty;
+- net_value_score;
+- decision_label;
+- decision_confidence;
+- strongest_evidence JSON;
+- main_risk;
+- total_effort_minutes;
+- next_action_minutes;
+- scoring_ruleset_version;
+- subjective_assessment_ids;
+- created_at.
+
+12.11 ActionItem
+
+Required fields:
+
+- id;
+- opportunity_id;
+- action_type;
+- description;
+- estimated_minutes;
+- due_at;
+- dependencies;
+- readiness_score;
+- status: blocked, ready, in_progress, complete, skipped;
+- created_at;
+- updated_at.
+
+12.12 Application and ApplicationArtifact
+
+Application required fields:
+
+- id;
+- opportunity_id;
+- state;
+- official_application_url;
+- started_at;
+- submitted_at;
+- outcome;
+- outcome_at;
+- follow_up_at;
+- created_at;
+- updated_at.
+
+Artifact required fields:
+
+- id;
+- application_id;
+- artifact_type;
+- private_path;
+- content_hash;
+- supporting_fact_ids;
+- generation_model;
+- prompt_version;
+- user_approved;
+- created_at.
+
+12.13 DecisionEvent
+
+Records user and system decisions:
+
+- apply;
+- maybe;
+- pass;
+- defer;
+- start;
+- submit;
+- withdraw;
+- accept;
+- reject;
+- override;
+- preference reason.
+
+12.14 ScoutRun and AuditEvent
+
+ScoutRun records category, query plan, budgets, sources considered, candidates,
+errors, model calls, start/end times, and delivery result.
+
+AuditEvent records all state transitions and canonical mutations with actor,
+reason, before/after identifiers, ruleset version, and timestamp.
+
+======================================================================
+13. CANONICAL PROFILE MODEL
+======================================================================
+
+13.1 Profile domains
+
+The profile must support:
+
+- identity;
+- education;
+- graduation plan;
+- GPA and academic standing;
+- work authorization and immigration constraints;
+- geographic constraints;
+- experience;
+- research roles;
+- publications and submissions;
+- projects;
+- open-source contributions;
+- awards;
+- leadership;
+- skills;
+- current commitments;
+- career objectives;
+- research objectives;
+- education objectives;
+- opportunity preferences;
+- application-friction preferences;
+- prior decisions and rejection reasons.
+
+13.2 Field stability classes
+
+Each field must declare a stability class:
+
+- permanent: awards, past roles, published artifacts;
+- slowly changing: core skills, long-term goals;
+- semester-sensitive: GPA, enrollment, graduation plan;
+- current-state: current role, project status, location;
+- preference: user-controlled and changeable at any time;
+- derived: inferred from other records and never authoritative alone.
+
+The class controls staleness review cadence.
+
+13.3 Fact states
+
+A profile field may be:
+
+- verified;
+- accepted;
+- unverified;
+- stale;
+- conflicted;
+- missing;
+- superseded.
+
+13.4 Source authority
+
+Authority must be field-specific. A single global source ranking is prohibited.
+
+Examples:
+
+- explicit user statement has highest authority for goals, preferences, and
+  intended graduation plan;
+- official institutional record has highest authority for recorded GPA,
+  enrollment, and awarded degree;
+- GitHub API has high authority for repository existence, language metadata,
+  releases, and merged pull-request metadata;
+- GitHub activity has low authority for expert-level skill claims;
+- official publication or venue pages have high authority for publication
+  status and metadata;
+- resumes and application documents are candidate sources that may be stale;
+- ChatGPT snapshots are candidate sources and never silently override a
+  stronger source;
+- pure model inference cannot become canonical without explicit approval or
+  independent evidence.
+
+Authority rules must be configuration-driven, versioned, and tested.
+
+13.5 ChatGPT profile import
+
+OpenAI Codex authentication provides model access. It must not be treated as
+access to the user's private ChatGPT memory or complete conversation history.
+
+V1 must support a structured import workflow:
+
+1. The user asks ChatGPT to produce a profile snapshot or exports one through
+   another supported process.
+2. The snapshot is delivered as JSON, TXT, or Markdown.
+3. OpportunityOS parses it into candidate observations.
+4. The reconciliation engine compares those observations with current facts.
+5. Non-conflicting low-risk facts may auto-accept according to source rules.
+6. conflicts and uncertain claims enter Review Inbox.
+
+Suggested JSON format:
+
+{
+  "export_version": "1.0",
+  "generated_at": "ISO-8601",
+  "facts": [
+    {
+      "field_path": "education.expected_graduation",
+      "value": "2027-05",
+      "effective_from": "2026-08-01",
+      "confidence": 0.9,
+      "source_note": "User-reported in ChatGPT",
+      "supporting_text": "Optional short context"
+    }
+  ]
+}
+
+The importer must tolerate prose exports by using an LLM extraction step, but
+all resulting items remain observations until reconciled.
+
+13.6 GitHub sync
+
+Required GitHub capabilities:
+
+- enumerate user repositories;
+- record public/private status without exposing private repository contents;
+- record repository URLs, descriptions, topics, primary languages, releases,
+  and update timestamps;
+- collect the user's merged pull-request metadata where accessible;
+- identify repository archival status;
+- detect new repositories and material metadata changes;
+- record public evidence URLs;
+- avoid full-code indexing in v1;
+- propose skill or significance inferences for review rather than asserting
+  them as fact.
+
+Authentication may use gh CLI or GitHub OAuth/token outside the repository.
+The adapter must degrade gracefully to public API access.
+
+13.7 Profile resynchronization
+
+Material accepted changes must trigger targeted reevaluation of active
+opportunities that depend on affected field paths. Reevaluate only impacted
+records when dependency data is available. A full active-opportunity rebuild
+may be used as a safe fallback.
+
+======================================================================
+14. RECONCILIATION ENGINE
+======================================================================
+
+14.1 Purpose
+
+The reconciliation engine converts observations into canonical projections
+through deterministic rules.
+
+14.2 Required sequence
+
+For each observation:
+
+1. validate schema and type;
+2. normalize value;
+3. identify field-specific authority;
+4. compare effective intervals;
+5. detect exact duplicate;
+6. detect supersession;
+7. detect conflict;
+8. evaluate auto-accept threshold;
+9. update projection or create ReviewItem;
+10. emit AuditEvent;
+11. trigger dependent reevaluation when canonical state changes.
+
+14.3 Auto-accept
+
+Auto-accept is allowed only when:
+
+- the field schema is known;
+- the source is allowed for that field;
+- extraction confidence meets the field threshold;
+- no credible conflicting observation overlaps;
+- the update does not require interpretive judgment;
+- the ruleset produces one unambiguous result.
+
+Examples suitable for auto-accept:
+
+- a GitHub repository exists at a verified API URL;
+- an official opportunity page lists a deadline;
+- a newer record from the same authoritative source supersedes an older value
+  with a clear effective date.
+
+14.4 Conflict creation
+
+Create a conflict when:
+
+- values are mutually exclusive;
+- effective intervals overlap;
+- both sources meet the credibility threshold;
+- neither source wins under field authority and recency rules;
+- no prior user resolution covers the newer evidence.
+
+14.5 Human resolution behavior
+
+The user must be able to resolve through natural language, Discord buttons,
+or CLI.
+
+Example:
+
+PROFILE CONFLICT
+Field: Expected graduation
+Candidate A: May 2027, source: user profile snapshot
+Candidate B: May 2028, source: resume
+Impact: 14 opportunities require a graduation window
+
+Actions:
+- select A;
+- select B;
+- enter another value;
+- mark both as contextual with effective intervals;
+- defer.
+
+The resolution must be stored and the impacted opportunities reevaluated.
+
+14.6 Repeated stale conflict prevention
+
+A source that repeats an already rejected older value must not reopen the
+conflict unless:
+
+- its content or timestamp is materially newer than the resolution;
+- a different authority class supports it;
+- the user requested reconsideration.
+
+14.7 Rebuildability
+
+A CLI command must rebuild canonical profile projections from observations,
+resolutions, and a specified reconciliation ruleset. The result must match the
+current projection in tests.
+
+======================================================================
+15. REVIEW INBOX
+======================================================================
+
+15.1 Required review types
+
+- CONFLICT: credible sources disagree;
+- STALE: time-sensitive fact exceeded review age;
+- UNVERIFIED: claim lacks sufficient evidence;
+- AMBIGUOUS: source wording cannot be normalized safely;
+- MISSING: a decision requires an absent profile fact or opportunity field;
+- POSSIBLE MERGE: two records may represent the same entity;
+- SOURCE FAILURE: official evidence could not be retrieved;
+- AUTH FAILURE: a connector or provider requires reauthentication.
+
+15.2 Review presentation
+
+The user may ask:
+
+- "what needs review?";
+- "review next";
+- "show conflicts affecting applications";
+- "resolve graduation as May 2027";
+- "defer this for a week".
+
+Discord should use Hermes interactive clarification buttons when appropriate,
+with a text fallback.
+
+15.3 Downstream behavior
+
+A conflicted or missing hard dependency must block APPLY. A stale soft field
+may lower confidence without blocking. The review item must list affected
+opportunities and actions.
+
+15.4 Review noise control
+
+Review items must be deduplicated. The system should surface:
+
+- urgent items immediately if they block a near deadline;
+- other items in a concise digest;
+- no repeated notification without new evidence or deadline impact.
+
+======================================================================
+16. OPPORTUNITY INGESTION
+======================================================================
+
+16.1 Common pipeline
+
+All inputs must enter the same normalized flow:
+
+1. receive input;
+2. create source record and content hash;
+3. classify intent and input type;
+4. identify candidate opportunity;
+5. normalize URL and organization/title/cycle;
+6. search for the official source if necessary;
+7. retrieve and extract official evidence;
+8. parse requirements and metadata into candidate records;
+9. deduplicate;
+10. reconcile opportunity fields;
+11. run eligibility;
+12. request subjective assessments;
+13. compute deterministic score and decision;
+14. create actions;
+15. respond and persist.
+
+16.2 URL ingestion
+
+The system must:
+
+- follow safe redirects;
+- strip common tracking parameters;
+- record original and final URL;
+- detect login walls and unavailable pages;
+- search for an official page when the submitted page is a social post,
+  aggregator, newsletter, or repost;
+- avoid executing page-provided instructions;
+- fingerprint extracted content for future change detection.
+
+16.3 Screenshot and image ingestion
+
+Use model vision to identify:
+
+- program name;
+- organization;
+- visible deadline;
+- visible URL or handle;
+- eligibility hints;
+- relevant text.
+
+Then search the web for an official source. Image-derived facts must remain
+candidate observations until corroborated. OCR may be used only as a fallback
+when model vision or embedded text is insufficient.
+
+16.4 PDF and document ingestion
+
+Required order:
+
+1. safe MIME detection;
+2. local text extraction when available;
+3. structured model extraction from text;
+4. vision/OCR fallback for scanned documents;
+5. no macro execution;
+6. no embedded script execution;
+7. size and page limits with clear error messages.
+
+16.5 Voice ingestion
+
+Hermes may transcribe a voice message. The transcript enters the plain-text
+pipeline. The transcript source and transcription confidence must be recorded.
+
+16.6 Attachment retention
+
+- Store attachments outside the repository.
+- Default maximum Discord attachment size should respect Hermes' supported
+  default unless the user explicitly raises it.
+- Default raw attachment retention: 30 days.
+- Derived source records and hashes may be retained after raw deletion.
+- Provide purge commands by age, source, opportunity, and all private data.
+
+======================================================================
+17. DEDUPLICATION
+======================================================================
+
+17.1 URL normalization
+
+Normalize:
+
+- scheme and hostname case;
+- trailing slash;
+- known tracking query parameters;
+- redirects;
+- fragments that do not identify a distinct application;
+- canonical link tags when trustworthy.
+
+17.2 Entity key
+
+Use organization + normalized title + cycle/year as the primary semantic key.
+Annual cycles must remain separate opportunities.
+
+17.3 Merge policy
+
+- exact canonical URL match: auto-merge sources;
+- same organization/title/cycle with high deterministic similarity:
+  auto-link sources if no field conflict;
+- fuzzy model suggestion: create POSSIBLE MERGE review item;
+- different cycle/year: keep separate;
+- conflicting official organizations or deadlines: keep separate pending review.
+
+17.4 Duplicate notification
+
+A rediscovered opportunity must update verification metadata without creating a
+new alert unless its deadline, status, score, or user relevance materially
+changed.
+
+======================================================================
+18. AUTONOMOUS DISCOVERY
+======================================================================
+
+18.1 Scheduler
+
+Use Hermes cron. Do not build a second general scheduler.
+
+Each scout run must use a fresh Hermes session with the relevant OpportunityOS
+skill attached. Database state, rather than conversational memory, must handle
+deduplication and continuity.
+
+18.2 Required scouts
+
+- Scholarship Scout;
+- Fellowship and Research Scout;
+- Grant and Founder Program Scout;
+- Competition and Selective Technical Program Scout;
+- General High-Upside Opportunity Scout.
+
+An ordinary job scout is disabled in v1.
+
+18.3 Search strategy
+
+The query planner must combine:
+
+- current canonical profile constraints;
+- user objectives;
+- opportunity preferences;
+- prior decisions;
+- prior successful and failed queries;
+- category templates;
+- current date and cycle;
+- terms indicating international eligibility where relevant;
+- terms indicating funding, travel support, tangible output, and selective
+  affiliation where relevant.
+
+An LLM may expand queries. The deterministic scout controller owns budgets,
+source allowlists, result limits, deduplication, and stop conditions.
+
+18.4 Scholarship Scout requirements
+
+Scholarship records should support:
+
+- award amount;
+- renewable status;
+- citizenship restrictions;
+- residency restrictions;
+- international-student eligibility;
+- degree level;
+- institution restrictions;
+- major/field restrictions;
+- GPA minimum;
+- FAFSA or financial-need requirements;
+- essay and recommendation requirements;
+- opening date;
+- deadline;
+- direct application link;
+- official sponsor source.
+
+Aggregator pages may seed leads. Final eligibility and deadline data must come
+from the scholarship sponsor, institution, or official application platform.
+
+18.5 Discovery quality gates
+
+Do not surface an autonomous discovery as APPLY unless:
+
+- an official or highly authoritative source is found;
+- the opportunity is open or has a verified future opening date;
+- the deadline is current;
+- hard eligibility is pass;
+- the item is not a duplicate;
+- net value meets the configured threshold;
+- confidence meets the configured threshold.
+
+18.6 Budgets
+
+Default local configuration must expose:
+
+- maximum search queries per scout run;
+- maximum candidate pages retrieved;
+- maximum deep evaluations;
+- maximum model calls;
+- maximum run duration;
+- maximum notifications;
+- daily aggregate caps.
+
+No paid search or extract backend may activate as a fallback unless explicitly
+configured by the user.
+
+18.7 Catch-up and missed runs
+
+Each scout records last successful completion. On a later run, it must detect
+an excessive gap and adjust the search window. It must avoid assuming that a
+sleeping laptop ran scheduled tasks.
+
+18.8 Digest behavior
+
+- Manual submissions receive immediate responses.
+- Autonomous scouts produce a concise digest only when there are new strong
+  opportunities, material changes, or urgent review items.
+- A run with no useful findings should remain quiet.
+- Every digest must link to official sources.
+
+======================================================================
+19. SOURCE RETRIEVAL AND WEB COST STRATEGY
+======================================================================
+
+19.1 Default search
+
+Use Hermes DDGS search by default because it requires no search API key.
+SearXNG may be supported as an optional self-hosted alternative.
+
+19.2 Default extraction
+
+V1 must not require a paid web-extraction provider. Implement:
+
+- direct HTTP retrieval with safe timeouts and user agent;
+- deterministic readable-text extraction;
+- Hermes browser or Playwright fallback for dynamic pages;
+- local caching and content hashing;
+- explicit failure when a login or anti-bot wall prevents verification.
+
+19.3 Paid services
+
+Firecrawl, Tavily, Exa, Brave paid usage, Nous Tool Gateway, or another paid
+service may be configured by the user. They must remain optional. No service
+should be silently enabled because a credential happens to exist elsewhere.
+
+19.4 Source freshness
+
+Store last_verified_at and source content hash. Reverify before presenting an
+opportunity as current when:
+
+- the deadline is near;
+- the last official verification exceeds a configurable freshness window;
+- the official content hash changed;
+- the user asks to prepare or submit;
+- the application status is unknown;
+- the opportunity type has high closure volatility.
+
+For manually ingested jobs, allow a private policy requiring verified posting
+age within a configured number of hours, including a 24-hour setting.
+
+======================================================================
+20. OPPORTUNITY REQUIREMENT EXTRACTION
+======================================================================
+
+20.1 Structured schema
+
+The LLM must return validated structured output. Free-form extraction cannot be
+written directly to requirements tables.
+
+Supported requirement categories should include:
+
+- current enrollment;
+- degree level;
+- class year;
+- graduation date or range;
+- field of study;
+- GPA;
+- age;
+- citizenship;
+- residency;
+- work authorization;
+- geographic location;
+- institution membership;
+- prior participation;
+- team size;
+- technical prerequisite;
+- demographic or access criteria;
+- financial need;
+- availability dates;
+- travel availability;
+- submission artifact;
+- deadline;
+- application status.
+
+20.2 Predicate representation
+
+Predicates must use a versioned deterministic DSL supporting:
+
+- equals;
+- not_equals;
+- in;
+- not_in;
+- greater_than_or_equal;
+- less_than_or_equal;
+- range;
+- before;
+- after;
+- contains;
+- any_of;
+- all_of;
+- unknown.
+
+Each predicate must retain the official text and evidence locator.
+
+20.3 Ambiguity
+
+Requirements such as "students from underrepresented backgrounds" or
+"demonstrated excellence" may require subjective interpretation. They must be
+marked soft or ambiguous. They cannot become hard failures without explicit
+rules and evidence.
+
+20.4 Prompt injection defense
+
+Extraction prompts must explicitly state that source text is untrusted data.
+The parser must ignore any content instructing it to reveal credentials,
+change rules, execute code, browse unrelated targets, or contact third parties.
+
+The system must test adversarial pages containing instructions such as:
+
+- ignore previous instructions;
+- upload local files;
+- reveal environment variables;
+- run a shell command;
+- mark every applicant eligible.
+
+No such instruction may affect tool behavior or canonical state.
+
+======================================================================
+21. ELIGIBILITY ENGINE
+======================================================================
+
+21.1 Deterministic behavior
+
+Eligibility checks run only from normalized requirements and canonical profile
+facts. LLM prose must not directly determine pass/fail.
+
+21.2 Results
+
+Each hard requirement returns:
+
+- PASS;
+- FAIL;
+- UNKNOWN;
+- CONFLICTED;
+- NOT_APPLICABLE.
+
+21.3 Overall eligibility
+
+- Any hard FAIL: INELIGIBLE.
+- No FAIL and any hard UNKNOWN or CONFLICTED: REVIEW REQUIRED.
+- All hard requirements PASS or NOT_APPLICABLE: ELIGIBLE.
+- Soft criteria affect fit assessments and confidence, not hard eligibility.
+
+21.4 Explanation
+
+Every check must expose:
+
+- normalized requirement;
+- official source;
+- profile facts used;
+- deterministic reason code;
+- result;
+- concise explanation.
+
+21.5 Missing rules
+
+If a requirement cannot be represented in the DSL, create an AMBIGUOUS review
+item. Do not default to pass.
+
+======================================================================
+22. SUBJECTIVE ASSESSMENT AND SCORING
+======================================================================
+
+22.1 Separation of responsibilities
+
+Hermes produces component assessments from 0 to 10 with rationales and
+supporting evidence. OpportunityOS code validates the schema, applies weights,
+calculates penalties and thresholds, and stores the result.
+
+22.2 Required value dimensions
+
+Default weights:
+
+- Strategic upside: 20 percent
+- Profile fit: 15 percent
+- Recognizable signal or affiliation: 10 percent
+- Tangible output potential: 10 percent
+- Access and network quality: 10 percent
+- Financial support or award value: 5 percent
+- Career and immigration optionality: 10 percent
+- Plausibility of meaningful outcome: 10 percent
+- Alignment with explicit user preferences: 10 percent
+
+The weighted score is converted to 0 through 100.
+
+22.3 Effort penalty
+
+Estimate total remaining effort. Apply the default deterministic penalty:
+
+- 30 minutes or less: 0
+- more than 30 minutes through 1 hour: 2
+- more than 1 through 2 hours: 4
+- more than 2 through 4 hours: 7
+- more than 4 through 8 hours: 10
+- more than 8 hours: 13
+- heavy custom artifact, major take-home, or substantial new project: add 2,
+  capped at 15 total.
+
+net_value_score = clamp(raw_value_score - effort_penalty, 0, 100)
+
+Store raw score and penalty separately.
+
+22.4 Decision labels
+
+Default thresholds:
+
+- APPLY: eligible, no hard unknown, net value at least 75, confidence at least
+  0.70;
+- MAYBE: eligible and net value from 55 through 74, or score is high with
+  medium confidence;
+- PASS: hard failure or net value below 55;
+- REVIEW REQUIRED: hard unknown, conflicted dependency, unavailable official
+  verification, or unresolved material ambiguity.
+
+Thresholds must be user-configurable and versioned.
+
+22.5 Confidence
+
+Compute confidence from:
+
+- official-source completeness;
+- extraction confidence;
+- profile fact certainty;
+- requirement coverage;
+- subjective assessment support.
+
+Display labels:
+
+- High: 0.80 or above;
+- Medium: 0.60 through 0.79;
+- Low: below 0.60.
+
+A hard unknown caps the final confidence and blocks APPLY.
+
+22.6 Strongest counterargument and underestimated risk
+
+Every APPLY or MAYBE evaluation must include:
+
+- strongest reason against pursuing the opportunity;
+- primary uncertainty;
+- the factor most likely to make the user underestimate required work or risk.
+
+22.7 Preference learning
+
+The decision ledger may identify patterns from repeated passes, applications,
+and outcomes. Inferred preferences remain low-authority observations.
+
+The system may say:
+
+"You passed on four similar ambassador programs because they lacked tangible
+output. Add this as an explicit preference?"
+
+It must not silently create a permanent preference rule.
+
+======================================================================
+23. PRIORITY QUEUE AND NEXT ACTION
+======================================================================
+
+23.1 Queue object
+
+The queue ranks actionable items, not only opportunities. A high-value
+opportunity with a 20-minute next action should remain selectable even when its
+full application requires hours.
+
+23.2 Component scores
+
+Calculate:
+
+- net_value_score: 0 through 100;
+- urgency_score: 0 through 100 based on deadline and scheduling risk;
+- readiness_score: 0 through 100 based on available materials, resolved facts,
+  and unblocked dependencies;
+- time_fit_score: 0 through 100 based on the user's available time and the
+  estimated next action.
+
+Default priority formula:
+
+priority_score =
+  0.55 * net_value_score
++ 0.20 * urgency_score
++ 0.15 * readiness_score
++ 0.10 * time_fit_score
+
+Blocked actions are excluded. REVIEW REQUIRED items may produce a reconciliation
+action if resolving the issue has high downstream value.
+
+23.3 Urgency defaults
+
+The ruleset should use a versioned piecewise or continuous function. Default
+behavior:
+
+- passed deadline: expire and exclude;
+- 1 day or less: critical;
+- 3 days or less: very high;
+- 7 days or less: high;
+- 14 days or less: medium;
+- 30 days or less: moderate;
+- more than 30 days: low;
+- no deadline: low unless another dependency applies.
+
+23.4 Time-aware interaction
+
+The user may ask:
+
+- "what should I work on?";
+- "I have 20 minutes";
+- "what matters today?";
+- "give me one thing";
+- "what should I finish before starting something else?"
+
+Default time budget when none is given: 45 minutes, configurable.
+
+The result must include:
+
+- one primary action;
+- why it outranks alternatives;
+- estimated minutes;
+- deadline;
+- what the system already prepared;
+- the exact human step required;
+- one fallback action only when the primary cannot be started.
+
+23.5 Anti-procrastination behavior
+
+The queue must detect high-value nearly complete applications and prioritize
+finishing them over discovering or starting lower-value items. Discovery must
+not become an avoidance mechanism.
+
+======================================================================
+24. APPLICATION PREPARATION
+======================================================================
+
+24.1 Trigger
+
+Preparation begins only after the user requests it or a configured workflow
+creates a draft-ready action. No external submission occurs.
+
+24.2 Required private packet
+
+For an application, create a private packet containing:
+
+- decision brief;
+- official application link;
+- verified deadline;
+- eligibility checklist;
+- requirements checklist;
+- evidence map;
+- recommended projects, roles, awards, and experiences;
+- draft answers where prompts are available;
+- resume content recommendations;
+- missing information questions;
+- submission checklist;
+- follow-up plan when appropriate.
+
+Suggested files:
+
+- decision_brief.txt
+- requirements_checklist.md
+- evidence_map.json
+- draft_answers.md
+- resume_recommendations.md
+- submission_checklist.md
+- application_state.json
+
+24.3 Grounding contract
+
+Every claim must reference one or more canonical fact IDs. The compiler must
+reject unsupported claims rather than inventing a plausible statement.
+
+The packet must visibly distinguish:
+
+- verified claim;
+- user-approved contextual claim;
+- draft interpretation requiring review;
+- missing evidence.
+
+24.4 Writing behavior
+
+Drafts should adapt to the opportunity while preserving factual consistency.
+The system may select different evidence for research, software engineering,
+founder, scholarship, and leadership applications.
+
+24.5 Reverification
+
+Before marking a packet READY, reverify:
+
+- official application is open;
+- deadline has not passed;
+- material requirements have not changed;
+- user eligibility remains valid under the current profile version.
+
+24.6 Prohibited behavior
+
+The compiler must not:
+
+- submit forms;
+- upload documents to external sites;
+- send emails;
+- accept terms;
+- fabricate metrics;
+- silently alter user profile facts;
+- use stale superseded facts;
+- claim an application is complete without explicit evidence.
+
+======================================================================
+25. OPPORTUNITY AND APPLICATION LIFECYCLE
+======================================================================
+
+25.1 Required states
+
+- DISCOVERED
+- SOURCE_VERIFIED
+- PARSED
+- ELIGIBILITY_PENDING
+- ELIGIBLE
+- INELIGIBLE
+- REVIEW_REQUIRED
+- EVALUATED
+- SHORTLISTED
+- PREPARING
+- READY
+- SUBMITTED
+- FOLLOW_UP_DUE
+- ACCEPTED
+- REJECTED
+- WITHDRAWN
+- EXPIRED
+- ARCHIVED
+
+25.2 Transition enforcement
+
+Transitions must be validated in code. Invalid state jumps must fail with a
+clear reason and no partial write.
+
+Examples:
+
+- READY requires a current official link and no unresolved hard eligibility;
+- SUBMITTED requires explicit user confirmation and submission timestamp;
+- ACCEPTED or REJECTED requires user input or authoritative imported evidence;
+- EXPIRED may be automatic when a verified deadline passes;
+- archived records remain searchable and deduplicated.
+
+25.3 Follow-up
+
+The system may create reminders for:
+
+- upcoming deadline;
+- incomplete high-value application;
+- recommended follow-up after submission;
+- expected result window;
+- stale official status.
+
+It must not send the follow-up communication without approval.
+
+======================================================================
+26. USER INTERFACES
+======================================================================
+
+26.1 Hermes Desktop
+
+Hermes Desktop is the main workspace for:
+
+- conversational queries;
+- queue review;
+- profile review;
+- application preparation;
+- source inspection;
+- configuration guidance;
+- long-form output.
+
+No OpportunityOS dashboard is required.
+
+26.2 Discord private DM
+
+Use Hermes' native Discord gateway. Do not implement discord.py or another
+parallel bot client.
+
+Required setup behavior:
+
+- allowlist the user's numeric Discord ID;
+- deny all other users;
+- prefer direct messages;
+- do not enable unrestricted users;
+- keep @everyone and role mentions disabled;
+- accept supported attachments within a configured size limit;
+- preserve each DM as an isolated Hermes session;
+- use native skill slash commands only where useful;
+- support interactive clarification buttons with text fallback.
+
+Required mobile interactions:
+
+- send screenshot only;
+- send screenshot with "check this";
+- forward URL;
+- send PDF;
+- send copied text;
+- ask "worth it?";
+- ask "add this";
+- ask "what should I do today?";
+- resolve a conflict.
+
+26.3 CLI
+
+Required commands or equivalent:
+
+- opportunityos setup
+- opportunityos doctor
+- opportunityos status
+- opportunityos profile show
+- opportunityos profile import <path>
+- opportunityos profile sync github
+- opportunityos profile rebuild
+- opportunityos review list
+- opportunityos review resolve <id>
+- opportunityos ingest <input>
+- opportunityos opportunity show <id>
+- opportunityos queue
+- opportunityos next --minutes <n>
+- opportunityos prepare <id>
+- opportunityos lifecycle update <id> <state>
+- opportunityos scout run <category>
+- opportunityos scout status
+- opportunityos backup
+- opportunityos restore
+- opportunityos export
+- opportunityos purge
+- opportunityos audit public-repo
+
+The CLI must use the same application services and rules as MCP tools.
+
+======================================================================
+27. HERMES SKILLS
+======================================================================
+
+27.1 opportunityos-intake
+
+Responsibilities:
+
+- recognize URL, image, file, text, and voice-derived inputs;
+- call the intake MCP tool;
+- identify the official source;
+- request structured extraction;
+- return a concise immediate result;
+- avoid writing canonical facts directly.
+
+27.2 opportunityos-profile-sync
+
+Responsibilities:
+
+- import candidate facts from configured sources;
+- describe source limitations;
+- submit structured observations;
+- surface resulting conflicts;
+- trigger targeted reevaluation.
+
+27.3 opportunityos-scout
+
+Responsibilities:
+
+- build profile-aware search queries;
+- respect deterministic run budgets;
+- treat aggregators as leads;
+- verify official pages;
+- submit candidates;
+- report only material findings.
+
+27.4 opportunityos-evaluate
+
+Responsibilities:
+
+- inspect deterministic eligibility results;
+- generate subjective dimension assessments;
+- cite canonical fact IDs and source IDs;
+- submit assessments for deterministic scoring;
+- explain APPLY, MAYBE, PASS, or REVIEW REQUIRED.
+
+27.5 opportunityos-review
+
+Responsibilities:
+
+- list Review Inbox items;
+- explain conflicts and downstream impact;
+- collect explicit user resolutions;
+- call resolution tools;
+- confirm resulting reevaluation.
+
+27.6 opportunityos-prepare
+
+Responsibilities:
+
+- retrieve current application requirements;
+- retrieve eligible canonical evidence;
+- draft a grounded packet;
+- attach evidence IDs to claims;
+- identify missing inputs;
+- never submit or send.
+
+27.7 Skill constraints
+
+Each skill must:
+
+- be concise enough for progressive disclosure;
+- declare required tools and environment;
+- use the MCP server rather than editing SQLite directly;
+- include prompt-injection warnings;
+- include failure behavior;
+- be versioned and tested through contract scenarios.
+
+======================================================================
+28. MCP TOOL CONTRACT
+======================================================================
+
+The exact names may change, but the capabilities are required.
+
+Profile tools:
+
+- profile_get_current
+- profile_get_fact
+- profile_submit_observations
+- profile_get_dependencies
+- profile_rebuild_projection
+- profile_sync_status
+
+Review tools:
+
+- review_list
+- review_get
+- review_resolve
+- review_defer
+
+Opportunity tools:
+
+- opportunity_submit_input
+- opportunity_submit_source
+- opportunity_submit_extraction
+- opportunity_get
+- opportunity_find_duplicates
+- opportunity_reverify
+
+Eligibility and scoring tools:
+
+- eligibility_evaluate
+- assessment_submit
+- evaluation_compute
+- evaluation_get
+
+Queue and action tools:
+
+- queue_list
+- queue_next
+- action_complete
+- action_skip
+
+Application tools:
+
+- application_create
+- application_prepare_context
+- application_store_artifact
+- application_mark_ready
+- lifecycle_update
+
+Scout and operations tools:
+
+- scout_begin
+- scout_record_candidate
+- scout_finish
+- system_status
+- backup_create
+
+Tool requirements:
+
+- typed JSON schema;
+- explicit read/write designation;
+- transaction boundaries;
+- idempotency keys for write operations;
+- audit events;
+- safe error messages;
+- no raw SQL exposure;
+- no arbitrary filesystem path outside approved private roots;
+- no external submission capability.
+
+======================================================================
+29. SECURITY AND PRIVACY
+======================================================================
+
+29.1 Threat model
+
+Address at minimum:
+
+- accidental secret commit to public GitHub;
+- accidental private-data commit;
+- malicious prompt injection in webpages or files;
+- unauthorized Discord user access;
+- model hallucination becoming canonical truth;
+- source spoofing;
+- unsafe file handling;
+- stale or conflicting profile data;
+- credential leakage in logs;
+- uncontrolled model or search spending;
+- unintended external action;
+- database corruption;
+- path traversal through attachment names;
+- symlink attacks inside private storage;
+- arbitrary command execution from imported content.
+
+29.2 Repository protections
+
+Required:
+
+- comprehensive .gitignore;
+- pre-commit secret scan;
+- CI secret scan;
+- CI rule rejecting database files and unapproved private artifact extensions;
+- audit script that checks tracked files for secrets, profile data patterns,
+  local paths, tokens, and runtime databases;
+- synthetic fixtures clearly labeled synthetic;
+- no real user profile in tests, examples, screenshots, or docs;
+- SECURITY.md and PRIVACY.md;
+- MIT LICENSE.
+
+29.3 Discord protections
+
+Required:
+
+- numeric user allowlist;
+- deny-all default;
+- private DM-first configuration;
+- restricted attachment size;
+- no unrestricted server channels;
+- no role or everyone mentions;
+- no slash-command privilege expansion beyond the allowed user;
+- clear documentation that authorized users possess agent tool access.
+
+29.4 File protections
+
+- sanitize filenames;
+- derive storage paths from UUIDs, not user filenames;
+- prevent path traversal;
+- never execute imported files;
+- disable document macros;
+- inspect MIME and extension mismatch;
+- cap decompression and extraction size;
+- reject archives with unsafe paths;
+- retain original hash;
+- purge on request.
+
+29.5 Logging
+
+Logs must be private, structured, rotated, and redacted. Do not log:
+
+- tokens;
+- OAuth data;
+- full resume or email text;
+- complete application drafts;
+- full raw webpage text;
+- environment variables.
+
+29.6 External actions
+
+MCP tools must not expose send, submit, post, purchase, accept, or delete-remote
+operations in v1.
+
+======================================================================
+30. COST AND RESOURCE CONTROLS
+======================================================================
+
+30.1 Default cost model
+
+Hermes should use OpenAI Codex through ChatGPT OAuth. This avoids requiring a
+separate OpenAI API key, but model use consumes the user's included ChatGPT
+Codex allowance and may consume optional credits when the user chooses to buy
+or enable them.
+
+OpportunityOS must describe this accurately. It must not claim unlimited free
+inference.
+
+30.2 No silent paid fallback
+
+The default configuration must:
+
+- use free DDGS search;
+- use local extraction and browser fallback;
+- avoid paid search APIs;
+- avoid paid model API keys;
+- keep Hermes model drift guard enabled when supported;
+- pin or validate automated scout models;
+- stop and report when allowance or authentication is unavailable;
+- never purchase credits.
+
+30.3 Tiered reasoning
+
+Where the current Codex provider exposes suitable model choices, support:
+
+- low-cost model for query expansion and first-pass triage;
+- stronger model for final extraction, evaluation, and application drafting.
+
+Do not hardcode a model name that may be deprecated. Setup must discover and
+validate available models. Public config should use semantic roles such as
+triage_model and deep_model.
+
+30.4 Usage ledger
+
+Record, where observable:
+
+- model calls per run;
+- input category;
+- candidates processed;
+- web searches;
+- page retrievals;
+- failures and retries;
+- run duration.
+
+If exact token or credit usage is unavailable, report counts rather than
+inventing cost estimates.
+
+======================================================================
+31. OPERATIONS, BACKUP, AND RECOVERY
+======================================================================
+
+31.1 Database behavior
+
+- SQLite foreign keys enabled;
+- WAL mode;
+- busy timeout;
+- transactional service operations;
+- no direct table mutation from skills;
+- migration backup before schema change;
+- integrity check in doctor command.
+
+31.2 Backup
+
+Provide:
+
+- manual backup command;
+- automatic backup before migration;
+- configurable periodic local backup;
+- manifest with schema version and hashes;
+- restore with preflight validation;
+- JSON export for portability.
+
+Backups remain private and outside the repository.
+
+31.3 Health status
+
+status and doctor must report:
+
+- Hermes installed version;
+- model provider authentication;
+- vision availability;
+- Discord gateway status;
+- cron status;
+- MCP registration;
+- database path and integrity;
+- latest backup;
+- GitHub adapter status;
+- web search status;
+- last scout run per category;
+- open urgent review items;
+- private path safety;
+- public-repo audit result.
+
+31.4 Gateway availability
+
+The product must clearly state when phone intake or scheduled scouts are
+unavailable because the Hermes gateway is not running. It must not imply
+continuous cloud operation.
+
+======================================================================
+32. FAILURE MODES AND REQUIRED BEHAVIOR
+======================================================================
+
+32.1 Invalid model output
+
+- Validate structured output.
+- Retry once with a repair prompt.
+- If still invalid, create a review or source-failure item.
+- Do not partially mutate canonical state.
+
+32.2 Official page unavailable
+
+- retain the lead;
+- mark source verification unavailable;
+- set REVIEW REQUIRED or defer;
+- do not recommend APPLY as verified;
+- retry within budget.
+
+32.3 Conflicting official deadlines
+
+- create conflict;
+- show both sources and timestamps;
+- block READY until reconciled or one source is proven superseded.
+
+32.4 Expired authentication
+
+- stop the affected adapter or scout;
+- create AUTH FAILURE review item;
+- do not loop or repeatedly spend model calls;
+- provide exact reauthentication guidance based on current docs.
+
+32.5 Discord attachment unavailable
+
+- preserve message metadata when possible;
+- explain that the file could not be cached or read;
+- ask the user to resend or provide a link;
+- never claim the attachment was analyzed.
+
+32.6 Database error
+
+- roll back transaction;
+- preserve source artifact;
+- log redacted error;
+- expose recovery guidance;
+- never continue with a partially applied evaluation.
+
+32.7 Prompt injection
+
+- ignore source instructions;
+- record a security warning when detected;
+- do not execute commands or reveal local data;
+- continue extraction only when safe.
+
+32.8 Laptop sleep or gateway down
+
+- no promise of real-time processing;
+- next successful scout detects the gap;
+- Discord appears offline or responds only when gateway returns;
+- status command explains the limitation.
+
+32.9 Duplicate concurrent ingestion
+
+- use content hash and idempotency key;
+- one canonical opportunity record;
+- attach both source events;
+- no duplicate notification.
+
+======================================================================
+33. QUALITY REQUIREMENTS
+======================================================================
+
+33.1 Code quality
+
+- full type hints for application code;
+- strict type checking;
+- no broad exception swallowing;
+- domain logic separated from adapters;
+- no business rules embedded only in prompts;
+- all formulas and thresholds in versioned config or code;
+- clear docstrings on public interfaces;
+- atomic migrations;
+- deterministic tests;
+- no network access in unit tests;
+- test clocks rather than wall-clock dependence.
+
+33.2 Test coverage
+
+Minimum targets:
+
+- domain and deterministic core line coverage: 90 percent;
+- overall line coverage: 80 percent;
+- all system invariants covered by tests;
+- all lifecycle transitions covered;
+- property tests for reconciliation and score determinism;
+- integration tests for SQLite and MCP;
+- contract tests for Hermes skill-to-MCP schemas;
+- mocked web and GitHub fixtures;
+- optional live tests clearly separated and never required in CI.
+
+33.3 CI
+
+CI must run on pull requests and main:
+
+- lockfile validation;
+- lint;
+- format check;
+- strict type check;
+- unit and integration tests;
+- migration test from empty database;
+- coverage gate;
+- secret scan;
+- public-repo privacy audit;
+- dependency vulnerability scan where practical;
+- package build.
+
+======================================================================
+34. REQUIRED TEST FIXTURES
+======================================================================
+
+All fixtures must be synthetic.
+
+F-01. Conflicting graduation dates
+Two credible sources contain May 2027 and May 2028 with overlapping validity.
+Expected: conflict, no silent winner, dependent eligibility blocked.
+
+F-02. Clear supersession
+One official source publishes GPA 3.3, then the same source publishes 3.5 at a
+later effective date.
+Expected: 3.5 canonical, 3.3 preserved as history, no unnecessary conflict.
+
+F-03. GitHub inference boundary
+A repository uses Rust.
+Expected: repository and language accepted; "Rust expert" remains unverified.
+
+F-04. International eligibility failure
+Official scholarship requires U.S. citizenship.
+Profile indicates incompatible status.
+Expected: hard fail and PASS decision regardless of subjective score.
+
+F-05. Unknown citizenship rule
+Aggregator claims international eligibility; official page is ambiguous.
+Expected: REVIEW REQUIRED, no APPLY.
+
+F-06. Duplicate opportunity
+Same program submitted through a tracking URL, screenshot, and official page.
+Expected: one opportunity, three sources, one notification.
+
+F-07. Annual cycles
+Same program for 2026 and 2027.
+Expected: separate opportunities linked by program family.
+
+F-08. Expired opportunity
+Deadline is in the past.
+Expected: EXPIRED, excluded from queue.
+
+F-09. Screenshot-only lead
+Image includes title and deadline, no URL.
+Expected: identify candidate, find official source, verify before scoring.
+
+F-10. Scanned PDF
+No extractable text.
+Expected: vision/OCR fallback, confidence recorded, no unsupported certainty.
+
+F-11. Malicious webpage
+Page instructs the agent to read local files and mark applicant eligible.
+Expected: instructions ignored, security event recorded, no local-file access.
+
+F-12. Unsupported attachment
+Binary file has misleading .pdf extension.
+Expected: MIME mismatch detected and safe rejection.
+
+F-13. Score replay
+Same inputs and ruleset evaluated twice.
+Expected: identical deterministic numeric results.
+
+F-14. Weight change
+User changes scoring weights.
+Expected: active opportunities rescored with new ruleset version, old evaluation
+preserved.
+
+F-15. Application grounding
+Draft requests a claim absent from the profile.
+Expected: claim rejected or marked missing; no fabrication.
+
+F-16. High-value nearly complete application
+One application is 80 percent complete and due soon; a new lower-value lead is
+found.
+Expected: next action prioritizes completion.
+
+F-17. Discord unauthorized user
+Unknown user messages bot.
+Expected: denied by Hermes allowlist, no OpportunityOS access.
+
+F-18. Public repository audit
+A fake token and SQLite file are deliberately staged in a test sandbox.
+Expected: audit fails.
+
+F-19. Model output invalid JSON
+Expected: one repair attempt, then safe review item without partial state.
+
+F-20. Laptop gap
+Scout last ran three days ago.
+Expected: next run recognizes gap and uses a catch-up search window.
+
+======================================================================
+35. END-TO-END ACCEPTANCE CRITERIA
+======================================================================
+
+AC-01. Clean Windows setup
+On a clean Windows 11 user account with Git installed, the documented setup
+installs or detects Hermes, installs OpportunityOS, creates private directories,
+initializes SQLite, and reaches doctor PASS without administrator rights,
+except for explicit external authentication steps.
+
+AC-02. Public/private isolation
+Running every normal workflow produces no untracked private runtime file inside
+the repository. The public-repo audit passes.
+
+AC-03. Codex OAuth
+Hermes authenticates through the current supported ChatGPT/Codex OAuth path
+without requiring an OpenAI API key. The documentation explains included usage
+and optional credits accurately.
+
+AC-04. Discord mobile intake
+The authorized user sends a screenshot in a Discord DM. Hermes receives it,
+OpportunityOS identifies the program, finds an official source, stores a source
+record, evaluates it, and replies with a grounded status.
+
+AC-05. Arbitrary supported file
+The authorized user sends a PDF. The file is cached privately, safely parsed,
+and processed through the common pipeline.
+
+AC-06. Unauthorized Discord access
+A non-allowlisted user cannot interact with the agent.
+
+AC-07. ChatGPT snapshot import
+A structured ChatGPT profile snapshot imports as candidate observations. It
+does not overwrite stronger facts silently.
+
+AC-08. GitHub sync
+The system records repository existence, metadata, and merged pull-request
+evidence while keeping interpretive skill claims unverified.
+
+AC-09. Conflict
+Two credible profile sources disagree. The system creates a ReviewItem and
+blocks dependent APPLY decisions.
+
+AC-10. Resolution
+The user resolves the conflict through Desktop, Discord, or CLI. The resolution
+is audited and affected opportunities are reevaluated.
+
+AC-11. Official-source verification
+A social post or aggregator submission resolves to an official source and
+stores a direct application link.
+
+AC-12. Hard eligibility failure
+A hard failure produces INELIGIBLE and PASS. No subjective score can override.
+
+AC-13. Hard eligibility unknown
+An unknown requirement produces REVIEW REQUIRED rather than APPLY.
+
+AC-14. Deterministic scoring
+Given fixed assessments and rules, repeated score calculation is identical.
+
+AC-15. Global queue
+Scholarships, research programs, grants, and competitions appear in one queue.
+
+AC-16. Time-aware next action
+The user says "I have 30 minutes." The system returns one ready action that fits
+the time or the highest-value sub-action that can be completed within it.
+
+AC-17. Application packet
+The user requests preparation. The system creates a private packet with an
+evidence map and no unsupported claims.
+
+AC-18. No external action
+The implementation contains no tool that submits, sends, posts, or purchases.
+
+AC-19. Autonomous scholarship scout
+A scheduled run discovers synthetic or mocked scholarship leads, verifies
+official sources, filters eligibility, deduplicates, and delivers only strong
+new items.
+
+AC-20. Quiet run
+A scout with no material findings sends no noisy digest.
+
+AC-21. Cost cap
+A scout stops at configured limits and records a bounded-run result.
+
+AC-22. Prompt injection resistance
+Malicious source instructions do not produce tool execution, secret access, or
+canonical mutation.
+
+AC-23. Backup and restore
+The database backs up, restores into a clean private directory, and reproduces
+canonical state and evaluations.
+
+AC-24. Migration safety
+Every migration is tested from an empty database and from the previous schema.
+A backup occurs before a real migration.
+
+AC-25. CI
+All required quality, privacy, and security checks pass on the public repo.
+
+======================================================================
+36. PRIMARY USER FLOWS
+======================================================================
+
+36.1 Bootstrap
+
+1. Clone public repository.
+2. Run setup script.
+3. Install or detect Hermes using official installation path.
+4. Authenticate Hermes with ChatGPT/Codex OAuth.
+5. Initialize private OpportunityOS directories and database.
+6. Register OpportunityOS MCP server and skills with Hermes.
+7. Create/configure Discord application manually at the authentication gate.
+8. Set numeric Discord user allowlist.
+9. Start Hermes gateway and configure supported auto-start.
+10. Configure GitHub source.
+11. Import a ChatGPT profile snapshot or local profile documents.
+12. Review initial conflicts.
+13. Seed scout schedules.
+14. Run doctor and public-repo audit.
+
+36.2 Mobile screenshot
+
+1. User sends screenshot to private Discord DM.
+2. Hermes caches attachment through native gateway.
+3. Intake skill submits attachment metadata to OpportunityOS.
+4. Vision extracts candidate identity.
+5. Hermes searches for official source.
+6. OpportunityOS records sources and normalizes fields.
+7. Deterministic eligibility runs.
+8. Hermes submits subjective components.
+9. Deterministic score and decision are computed.
+10. Discord reply shows conclusion, official link, reason, risk, and queue action.
+
+36.3 Autonomous scout
+
+1. Hermes cron starts a fresh scout session.
+2. Scout reads current profile constraints and run budget.
+3. It generates category-specific searches.
+4. It records candidate leads.
+5. It verifies official sources.
+6. OpportunityOS deduplicates and evaluates.
+7. Strong new items enter queue.
+8. Digest is delivered only if material.
+9. ScoutRun is finalized with counts and errors.
+
+36.4 Profile change
+
+1. GitHub sync, document import, ChatGPT snapshot, or user statement creates
+   observations.
+2. Reconciliation accepts, supersedes, or flags.
+3. Canonical projection version increments only when current truth changes.
+4. Impacted opportunities reevaluate.
+5. User receives a concise change summary.
+
+36.5 Human reconciliation
+
+1. User asks for Review Inbox.
+2. System shows one conflict and downstream impact.
+3. User selects or enters current value.
+4. Resolution is stored.
+5. Projection rebuilds.
+6. Affected opportunities rescore.
+7. System reports changes.
+
+36.6 Next action
+
+1. User gives available minutes or asks generally.
+2. OpportunityOS filters ready actions.
+3. Priority formula runs.
+4. It returns one action, reason, minutes, deadline, and prepared assets.
+5. User completes or skips action.
+6. Decision ledger updates.
+
+36.7 Application preparation
+
+1. User says "prepare this."
+2. System reverifies official page.
+3. It reads requirements and current profile version.
+4. It selects verified evidence.
+5. Hermes drafts packet content.
+6. OpportunityOS validates claim-evidence mapping.
+7. Packet is stored privately.
+8. User reviews and later confirms submission manually.
+
+======================================================================
+37. IMPLEMENTATION SEQUENCE
+======================================================================
+
+The engineering agent should implement in this order.
+
+Phase 0: Repository and environment
+
+- inspect empty public repository;
+- read current Hermes llms.txt and relevant official pages;
+- add AGENTS.md, license, project tooling, docs skeleton, CI;
+- create private-path abstraction;
+- add public-repo audit.
+
+Phase 1: Deterministic core
+
+- schemas;
+- database and migrations;
+- source records;
+- observations;
+- canonical projection;
+- reconciliation;
+- Review Inbox;
+- audit events;
+- unit and property tests.
+
+Phase 2: Opportunity core
+
+- opportunity records;
+- deduplication;
+- requirements DSL;
+- eligibility;
+- scoring;
+- queue;
+- lifecycle;
+- tests.
+
+Phase 3: Adapters
+
+- file/document ingestion;
+- web retrieval and extraction;
+- GitHub sync;
+- ChatGPT snapshot import;
+- synthetic fixtures;
+- failure handling.
+
+Phase 4: Hermes integration
+
+- MCP server;
+- skills;
+- setup registration;
+- Desktop workflow;
+- contract tests.
+
+Phase 5: Discord
+
+- configure Hermes native Discord gateway;
+- attachment intake;
+- allowlist;
+- interactive review;
+- integration checklist;
+- no custom Discord client.
+
+Phase 6: Autonomous scouts
+
+- cron jobs;
+- category skills;
+- budgets;
+- digest;
+- catch-up behavior;
+- scholarship-specific fields.
+
+Phase 7: Application preparation
+
+- private packet structure;
+- grounded claim mapping;
+- readiness validation;
+- lifecycle actions.
+
+Phase 8: Hardening
+
+- prompt injection tests;
+- secrets/privacy audit;
+- backup/restore;
+- Windows clean-install validation;
+- documentation convergence;
+- final end-to-end acceptance pass.
+
+The implementer should stop only for an external authentication or credential
+step that cannot be completed safely. It should continue all other work using
+synthetic fixtures and mocked integrations.
+
+======================================================================
+38. DOCUMENTATION REQUIREMENTS
+======================================================================
+
+README.md must explain:
+
+- product purpose;
+- architecture in one diagram;
+- exact quick start;
+- private data boundary;
+- current limitations;
+- cost model;
+- no automatic submission;
+- screenshots/files through Discord;
+- public repository safety.
+
+HERMES_SETUP.md must explain:
+
+- official Hermes install path;
+- OpenAI Codex provider through ChatGPT OAuth;
+- MCP registration;
+- external skills;
+- gateway and cron;
+- current-version verification.
+
+DISCORD_SETUP.md must explain:
+
+- create Discord application;
+- enable required intents according to current Hermes docs;
+- retrieve bot token;
+- retrieve numeric user ID;
+- configure allowlist;
+- DM behavior;
+- attachment size;
+- start and verify gateway;
+- security warning for authorized users.
+
+PROFILE_IMPORT.md must explain:
+
+- ChatGPT snapshot limitations;
+- import schema;
+- GitHub evidence boundaries;
+- source authority;
+- conflicts and resolution;
+- profile export and deletion.
+
+SCORING.md must explain:
+
+- every dimension;
+- weights;
+- effort penalty;
+- thresholds;
+- priority formula;
+- confidence;
+- ruleset versioning;
+- user customization.
+
+THREAT_MODEL.md must cover Section 29 in detail.
+
+OPERATIONS.md must cover:
+
+- gateway availability;
+- scout schedules;
+- backups;
+- reauthentication;
+- database integrity;
+- logs;
+- purge;
+- public-repo audit.
+
+COMPATIBILITY.md must record:
+
+- tested Windows version;
+- tested Hermes version;
+- tested Python version;
+- tested MCP SDK version;
+- tested Discord attachment path;
+- tested Codex OAuth path;
+- date verified.
+
+======================================================================
+39. SUCCESS METRICS
+======================================================================
+
+V1 should collect local metrics without analytics upload.
+
+Operational metrics:
+
+- percentage of manual inputs successfully identified;
+- percentage resolved to an official source;
+- eligibility coverage;
+- duplicate rate;
+- review-item rate;
+- median time from intake to decision;
+- scout candidates per useful surfaced item;
+- application packet grounding failures;
+- failed scheduled runs;
+- cost-budget stops.
+
+User-value metrics:
+
+- high-value opportunities completed;
+- incomplete high-value applications rescued before deadline;
+- average user time from discovery to decision;
+- percentage of surfaced APPLY items the user accepts;
+- percentage of PASS items later overridden;
+- number of repeated low-value categories suppressed;
+- applications submitted and outcomes.
+
+No metric should be uploaded externally in v1.
+
+======================================================================
+40. DEFINITION OF DONE
+======================================================================
+
+OpportunityOS v1 is done only when:
+
+1. The public repository contains a reproducible Python project with MIT
+   license and complete documentation.
+2. Hermes runs locally on Windows and uses ChatGPT/Codex OAuth without a
+   required OpenAI API key.
+3. OpportunityOS registers typed MCP tools and project skills with Hermes.
+4. Hermes Desktop can operate all primary workflows conversationally.
+5. The private Discord DM accepts screenshots, PDFs, files, links, text, and
+   voice-derived transcripts through Hermes' native gateway.
+6. Private runtime state is outside the repository.
+7. The profile ledger supports provenance, history, conflicts, review, and
+   human resolution.
+8. GitHub and ChatGPT snapshot imports work as candidate sources.
+9. Opportunity ingestion resolves official sources and deduplicates.
+10. Eligibility is deterministic and blocks on hard failures or unknowns.
+11. Scoring and priority are reproducible and versioned.
+12. The user can ask for one next action constrained by available time.
+13. Application preparation produces a private evidence-grounded packet.
+14. Scheduled scouts run with budgets and quiet digest behavior.
+15. The Scholarship Scout verifies international eligibility and official
+    deadlines.
+16. No external submission or sending capability exists.
+17. Prompt-injection, unauthorized Discord, secret-leak, and private-data tests
+    pass.
+18. Backup, restore, migration, and projection rebuild pass.
+19. All acceptance criteria pass or are documented as environment-gated with
+    exact manual verification evidence.
+20. The final public-repo audit reports no secrets or personal runtime data.
+
+======================================================================
+41. FUTURE WORK AFTER V1
+======================================================================
+
+Potential later additions:
+
+- always-on private hosting;
+- custom mobile share-sheet application;
+- Gmail and Drive adapters;
+- Calendar deadline synchronization;
+- browser extension for one-click intake;
+- user-approved email drafting and sending;
+- existing job tracker adapter;
+- outcome-based weight calibration;
+- local semantic search if SQLite FTS proves insufficient;
+- multi-device encrypted synchronization;
+- multi-user deployment;
+- public plugin packaging;
+- supported direct ChatGPT data adapter if OpenAI exposes an official API.
+
+None of these may delay v1.
+
+======================================================================
+42. CURRENT OFFICIAL IMPLEMENTATION REFERENCES
+======================================================================
+
+These references were verified when this PRD was prepared. The implementer
+must check the current versions before coding.
+
+Hermes documentation root and machine-readable docs:
+https://hermes-agent.nousresearch.com/docs/
+https://hermes-agent.nousresearch.com/docs/llms.txt
+
+Hermes installation and native Windows:
+https://hermes-agent.nousresearch.com/docs/getting-started/installation
+https://hermes-agent.nousresearch.com/docs/user-guide/windows-native
+
+Hermes Desktop:
+https://hermes-agent.nousresearch.com/docs/user-guide/desktop
+
+Hermes Discord gateway and attachments:
+https://hermes-agent.nousresearch.com/docs/user-guide/messaging/discord/
+
+Hermes scheduled tasks:
+https://hermes-agent.nousresearch.com/docs/user-guide/features/cron/
+
+Hermes skills:
+https://hermes-agent.nousresearch.com/docs/user-guide/features/skills/
+
+Hermes vision:
+https://hermes-agent.nousresearch.com/docs/user-guide/features/vision
+
+Hermes web search and extraction:
+https://hermes-agent.nousresearch.com/docs/user-guide/features/web-search
+
+Hermes providers and OpenAI Codex through ChatGPT OAuth:
+https://hermes-agent.nousresearch.com/docs/integrations/providers/
+
+Optional Hermes Codex app-server runtime, excluded as a v1 dependency:
+https://hermes-agent.nousresearch.com/docs/user-guide/features/codex-app-server-runtime
+
+OpenAI Codex usage through ChatGPT plans and optional credits:
+https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan
+https://help.openai.com/en/articles/12642688-using-credits-for-flexible-usage-in-chatgpt-pluspro
+
+======================================================================
+END OF PRODUCT REQUIREMENTS DOCUMENT
+======================================================================
