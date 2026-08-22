@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from alembic import command
 from alembic.config import Config
@@ -31,6 +32,38 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from opportunityos.util import new_id, sha256_file, utc_now
+
+
+@contextmanager
+def _migration_lock(path: Path) -> Iterator[None]:
+    """Serialize first-run and upgrade checks across concurrent local processes."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.touch(exist_ok=True)
+    with path.open("r+b") as handle:
+        handle.seek(0)
+        if not handle.read(1):
+            handle.seek(0)
+            handle.write(b"0")
+            handle.flush()
+        handle.seek(0)
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+            try:
+                yield
+            finally:
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            locker = cast(Any, fcntl)
+            locker.flock(handle.fileno(), locker.LOCK_EX)
+            try:
+                yield
+            finally:
+                locker.flock(handle.fileno(), locker.LOCK_UN)
 
 
 class Base(DeclarativeBase):
@@ -291,6 +324,105 @@ class ScoutRunRow(Base):
     delivery_result: Mapped[str | None] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(30), nullable=False)
     catch_up_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    discovery_run_id: Mapped[str | None] = mapped_column(
+        ForeignKey("discovery_runs.id", use_alter=True), index=True
+    )
+    branch_id: Mapped[str | None] = mapped_column(
+        ForeignKey("search_branches.id", use_alter=True), index=True
+    )
+
+
+class DiscoveryRunRow(Base):
+    __tablename__ = "discovery_runs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    profile_projection_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    enabled_lenses: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    completed_lenses: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    skipped_lenses: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False)
+    baseline_query_counts: Mapped[dict[str, int]] = mapped_column(JSON, nullable=False)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    deep_contract_satisfied: Mapped[bool] = mapped_column(default=False, nullable=False)
+    delivery_result: Mapped[str | None] = mapped_column(String(30))
+    errors: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    catch_up_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class QueryStrategyRow(Base):
+    __tablename__ = "query_strategies"
+    __table_args__ = (UniqueConstraint("lens", "query_family", "query_template"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    lens: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    query_family: Mapped[str] = mapped_column(String(300), index=True, nullable=False)
+    query_template: Mapped[str] = mapped_column(String(500), nullable=False)
+    parent_strategy_id: Mapped[str | None] = mapped_column(ForeignKey("query_strategies.id"))
+    seed_opportunity_id: Mapped[str | None] = mapped_column(ForeignKey("opportunities.id"))
+    seed_source_id: Mapped[str | None] = mapped_column(ForeignKey("source_records.id"))
+    generation_reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    profile_projection_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    first_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    use_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    historical_yield: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    recent_yield: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    disabled: Mapped[bool] = mapped_column(default=False, nullable=False)
+    disabled_reason: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class SearchBranchRow(Base):
+    __tablename__ = "search_branches"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    discovery_run_id: Mapped[str] = mapped_column(ForeignKey("discovery_runs.id"), index=True)
+    scout_run_id: Mapped[str | None] = mapped_column(ForeignKey("scout_runs.id"), index=True)
+    parent_branch_id: Mapped[str | None] = mapped_column(ForeignKey("search_branches.id"))
+    lens: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    allocation_class: Mapped[str] = mapped_column(String(30), nullable=False)
+    depth: Mapped[int] = mapped_column(Integer, nullable=False)
+    strategy_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    allocated_queries: Mapped[int] = mapped_column(Integer, nullable=False)
+    queries_used: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    recent_observations: Mapped[list[dict[str, int]]] = mapped_column(JSON, nullable=False)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    stop_reason: Mapped[str | None] = mapped_column(String(500))
+    reallocated_queries: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SourceRegistryRow(Base):
+    __tablename__ = "source_registry"
+    __table_args__ = (UniqueConstraint("domain"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    domain: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    canonical_name: Mapped[str] = mapped_column(String(300), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    official_or_secondary: Mapped[str] = mapped_column(String(30), nullable=False)
+    supported_lenses: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    trust_class: Mapped[str] = mapped_column(String(100), nullable=False)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_check_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    check_cadence_hours: Mapped[int] = mapped_column(Integer, nullable=False)
+    successful_discovery_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    apply_discovery_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    maybe_discovery_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    duplicate_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    closed_or_stale_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    failure_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    recent_yield_score: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    historical_yield_score: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    change_frequency: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    preferred_discovery_method: Mapped[str] = mapped_column(String(100), nullable=False)
+    disabled: Mapped[bool] = mapped_column(default=False, nullable=False)
+    disabled_reason: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class AuditEventRow(Base):
@@ -314,6 +446,98 @@ class IdempotencyRow(Base):
     operation: Mapped[str] = mapped_column(String(100), nullable=False)
     result_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ReminderStateRow(Base, TimestampMixin):
+    __tablename__ = "reminder_states"
+    __table_args__ = (UniqueConstraint("opportunity_id", "action_id", "reminder_type"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    opportunity_id: Mapped[str] = mapped_column(ForeignKey("opportunities.id"), index=True)
+    action_id: Mapped[str] = mapped_column(ForeignKey("action_items.id"), index=True)
+    reminder_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    severity: Mapped[int] = mapped_column(Integer, nullable=False)
+    first_due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    next_due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    snoozed_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_delivery_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    delivery_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    stopped: Mapped[bool] = mapped_column(default=False, nullable=False)
+    stopped_reason: Mapped[str | None] = mapped_column(String(500))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PreparationPolicyRow(Base):
+    __tablename__ = "preparation_policy_records"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    opportunity_id: Mapped[str] = mapped_column(ForeignKey("opportunities.id"), index=True)
+    evaluation_id: Mapped[str | None] = mapped_column(ForeignKey("evaluations.id"))
+    gate_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    score: Mapped[float] = mapped_column(Float, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    gate_result: Mapped[str] = mapped_column(String(20), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    prepared_application_id: Mapped[str | None] = mapped_column(ForeignKey("applications.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class FollowUpStateRow(Base):
+    __tablename__ = "follow_up_states"
+    __table_args__ = (UniqueConstraint("opportunity_id"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    opportunity_id: Mapped[str] = mapped_column(ForeignKey("opportunities.id"), index=True)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expected_response_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expected_response_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    earliest_followup_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    latest_followup_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    followup_prohibited: Mapped[bool] = mapped_column(default=False, nullable=False)
+    followup_reason: Mapped[str | None] = mapped_column(Text)
+    followup_draft_artifact_id: Mapped[str | None] = mapped_column(
+        ForeignKey("application_artifacts.id")
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class HealthStateRow(Base):
+    __tablename__ = "health_states"
+    component: Mapped[str] = mapped_column(String(100), primary_key=True)
+    status: Mapped[str] = mapped_column(String(30), nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    consecutive_failures: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    detail_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    notification_fingerprint: Mapped[str | None] = mapped_column(String(64))
+
+
+class BriefRunRow(Base):
+    __tablename__ = "brief_runs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    brief_type: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    selected_item_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    delivery_result: Mapped[str] = mapped_column(String(30), nullable=False)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class StrategySnapshotRow(Base):
+    __tablename__ = "strategy_snapshots"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    recommendation: Mapped[str | None] = mapped_column(Text)
+    evidence_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AutomationControlRow(Base):
+    __tablename__ = "automation_controls"
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
+    reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class Database:
@@ -356,14 +580,15 @@ class Database:
         )
         configuration.attributes["opportunityos_runtime"] = True
         head = ScriptDirectory.from_config(configuration).get_current_head()
-        with self.engine.connect() as connection:
-            current = MigrationContext.configure(connection).get_current_revision()
-        if current == head:
-            return
-        existing_tables = set(Base.metadata.tables).intersection(self._table_names())
-        if existing_tables:
-            self._backup_before_migration(backup_root, current, head)
-        command.upgrade(configuration, "head")
+        with _migration_lock(backup_root / ".migration.lock"):
+            with self.engine.connect() as connection:
+                current = MigrationContext.configure(connection).get_current_revision()
+            if current == head:
+                return
+            existing_tables = set(Base.metadata.tables).intersection(self._table_names())
+            if existing_tables:
+                self._backup_before_migration(backup_root, current, head)
+            command.upgrade(configuration, "head")
 
     def _table_names(self) -> set[str]:
         with sqlite3.connect(self.path) as connection:

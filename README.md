@@ -23,8 +23,39 @@ sends a message, accepts terms, makes a purchase, or deletes remote data.
 - Captures opportunities and verifies requirements against official sources.
 - Computes eligibility, value, confidence, and the next best action with deterministic rules.
 - Compiles seven private, evidence-linked application artifacts without submitting them.
-- Gives Hermes bounded scout state with budgets, quiet runs, and duplicate-delivery protection.
+- Gives Hermes bounded V3 global discovery state with 17 lenses, adaptive branches, source yield,
+  quiet runs, coverage reports, and duplicate-delivery protection.
 - Exposes the same application services through a CLI and a typed stdio MCP server.
+
+## V2 proactive behavior
+
+The V2 behavioral layer keeps the V1 deterministic core and adds bounded local autonomy:
+
+- configurable category scouts with quiet delivery and missed-run catch-up;
+- high-confidence private auto-preparation gates;
+- execution priority that rewards completion leverage and time fit;
+- proactive reminders with daily caps, quiet hours, snooze, stop, and duplicate suppression;
+- material daily, evening-rescue, and evidence-bounded weekly briefs;
+- explicit-submission follow-up dates and private drafts;
+- profile/opportunity reevaluation, private automatic backups, and actionable health state.
+
+Hermes cron remains the scheduler and Hermes/Discord remains the delivery surface. Python exposes
+local state and redacted content but never submits applications, sends messages, uploads materials,
+purchases, accepts terms, withdraws applications, or mutates remote accounts.
+
+## V3 global discovery
+
+V3 preserves the V1/V2 candidate funnel and adds a persistent global discovery engine. The default
+Hermes schedule is two bounded cycles at 06:00 and 18:00 in `America/Chicago`. Each cycle covers
+scholarships, fellowships, undergraduate research, research collaboration, grants, founder and
+idea-stage programs, competitions, selective technical programs, open source, AI/ML, AI
+safety/security, systems/infrastructure, technical entrepreneurship, wildcard, profile-gap, and
+similar-to-valued lenses. Query families, source cadence, adaptive lineage, saturation, allocation,
+and coverage remain private in SQLite; ordinary delivery includes only material opportunity or
+execution value and otherwise returns `[SILENT]`.
+
+V2 category scout calls remain available for compatibility. V3 never changes scoring weights,
+eligibility rules, canonical profile facts, or the no-external-action boundary.
 
 ## Quick start
 
@@ -85,7 +116,8 @@ conversational interface.
 2. Merge the MCP entry from [`examples/hermes-config.example.yaml`](examples/hermes-config.example.yaml)
    into your private Hermes configuration.
 3. Run `hermes mcp list` and `hermes mcp test opportunityos`.
-4. Copy the six directories under [`skills/`](skills/) into your private Hermes skills directory.
+4. Copy every directory under [`skills/`](skills/) into your private Hermes skills directory,
+   including the V2 behavioral skills for execution, briefs, follow-up, and health.
 5. Test profile sync and opportunity intake in Hermes Desktop before enabling Discord or scouts.
 
 The complete instructions are in [Hermes setup](docs/HERMES_SETUP.md) and
@@ -104,7 +136,13 @@ tokens, OAuth grants, or background services.
 | Rank actions that fit a time budget | `opportunityos queue --minutes 45` |
 | Select one next action | `opportunityos next --minutes 45` |
 | Compile an application packet | `opportunityos prepare OPPORTUNITY_ID` |
+| Find high-value unfinished work | `opportunityos execution-risk --minutes 45` |
+| Build a material-only brief | `opportunityos brief daily` |
+| Check local automation health | `opportunityos health` |
+| Run the configured private backup policy | `opportunityos backup-auto` |
 | Create a verified private backup | `opportunityos backup` |
+| Plan or inspect global V3 discovery | `opportunityos discovery begin`, `opportunityos discovery status` |
+| Inspect V3 coverage and search memory | `opportunityos discovery coverage RUN_ID`, `opportunityos discovery strategies` |
 | Audit the checkout before publishing | `opportunityos audit public-repo` |
 
 Run `opportunityos --help` or `opportunityos COMMAND --help` for the complete command reference.

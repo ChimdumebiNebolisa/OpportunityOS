@@ -36,6 +36,36 @@ def test_mcp_catalog_is_typed_and_has_no_external_actions() -> None:
         "scout_begin",
         "scout_record_usage",
         "scout_finish",
+        "scout_abort",
+        "discovery_begin",
+        "discovery_record_query",
+        "discovery_expand_branch",
+        "discovery_record_source_check",
+        "discovery_finish",
+        "discovery_coverage",
+        "discovery_strategies",
+        "discovery_sources",
+        "discovery_status",
+        "execution_get_risk",
+        "execution_next",
+        "execution_record_delivery",
+        "execution_snooze",
+        "execution_stop_reminders",
+        "execution_mark_passed",
+        "execution_mark_applied",
+        "auto_prepare_evaluate_gate",
+        "auto_prepare_execute",
+        "followup_get_due",
+        "followup_prepare_draft",
+        "followup_mark_complete",
+        "brief_build",
+        "health_check",
+        "health_record_live_test",
+        "backup_run_auto",
+        "backup_status",
+        "profile_reevaluate_dependents",
+        "automation_controls",
+        "automation_set_control",
         "system_status",
         "backup_create",
     }
@@ -52,7 +82,12 @@ def test_every_skill_tool_reference_exists() -> None:
         r"opportunity_(?:submit|get|find|reverify)|eligibility_evaluate|assessment_submit|"
         r"evaluation_(?:compute|get)|queue_(?:list|next)|action_(?:create|complete|skip)|"
         r"application_(?:create|prepare|store|mark)|lifecycle_update|"
-        r"scout_(?:begin|record|finish)|system_status|backup_create)[a-z_]*)`"
+        r"scout_(?:begin|record|finish|abort)|discovery_(?:begin|record|expand|finish|coverage|strategies|sources|status)|"
+        r"execution_(?:get_risk|next|record_delivery|snooze|"
+        r"stop_reminders|mark_passed|mark_applied)|auto_prepare_(?:evaluate_gate|execute)|"
+        r"followup_(?:get_due|prepare_draft|mark_complete)|brief_build|health_(?:check|record_live_test)|"
+        r"backup_(?:create|run_auto|status)|profile_reevaluate_dependents|automation_(?:controls|set_control)|"
+        r"system_status)[a-z_]*)`"
     )
     root = Path(__file__).parents[2] / "skills"
     referenced: set[str] = set()

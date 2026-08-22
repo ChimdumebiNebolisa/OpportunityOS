@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpportunityOS briefs"
+  short_description: "Deliver concise material opportunity briefs"
+  default_prompt: "Use $opportunityos-brief to build the requested daily, evening, or weekly brief."

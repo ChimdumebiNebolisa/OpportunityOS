@@ -20,8 +20,11 @@ from opportunityos.application.context import ApplicationContext
 from opportunityos.infrastructure.database import (
     ActionItemRow,
     AuditEventRow,
+    AutomationControlRow,
     Base,
+    DiscoveryRunRow,
     EvaluationRow,
+    HealthStateRow,
     ReviewItemRow,
     ScoutRunRow,
 )
@@ -263,6 +266,39 @@ class OperationsService:
                     select(ScoutRunRow).order_by(ScoutRunRow.started_at.desc()).limit(20)
                 ).all()
             ]
+            last_discovery = [
+                {
+                    "run_id": row.id,
+                    "status": row.status,
+                    "deep_contract_satisfied": row.deep_contract_satisfied,
+                    "delivery_result": row.delivery_result,
+                    "started_at": row.started_at,
+                    "ended_at": row.ended_at,
+                }
+                for row in session.scalars(
+                    select(DiscoveryRunRow).order_by(DiscoveryRunRow.started_at.desc()).limit(5)
+                ).all()
+            ]
+            health_state = [
+                {
+                    "component": row.component,
+                    "status": row.status,
+                    "detail_code": row.detail_code,
+                    "checked_at": row.checked_at,
+                    "last_success_at": row.last_success_at,
+                    "consecutive_failures": row.consecutive_failures,
+                }
+                for row in session.scalars(select(HealthStateRow)).all()
+            ]
+            automation_controls = [
+                {
+                    "key": row.key,
+                    "enabled": row.enabled,
+                    "reason": row.reason,
+                    "updated_at": row.updated_at,
+                }
+                for row in session.scalars(select(AutomationControlRow)).all()
+            ]
         findings = audit_public_repository(self.context.settings.repository_root)
         hermes_executable = self._hermes_executable()
         hermes = self._command_version("hermes")
@@ -290,6 +326,13 @@ class OperationsService:
                 "detail": "Optional authenticated check requires private credentials.",
             },
             "scouts": last_scouts,
+            "discovery": {
+                "enabled": self.context.settings.discovery.enabled,
+                "schedules": self.context.settings.discovery.schedules,
+                "runs": last_discovery,
+            },
+            "health": health_state,
+            "automation_controls": automation_controls,
             "continuous_operation": integrations["discord_gateway"]["state"] == "PASS",
         }
 

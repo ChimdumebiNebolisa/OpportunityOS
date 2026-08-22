@@ -10,22 +10,23 @@ from sqlalchemy.orm import Session
 
 from opportunityos.application.common import audit, idempotent_result, store_idempotent
 from opportunityos.application.context import ApplicationContext
+from opportunityos.domain.behavior import execution_priority
 from opportunityos.domain.decisions import (
     evaluate_requirement,
     overall_eligibility,
-    priority_score,
     score_opportunity,
-    time_fit_score,
     urgency_score,
     validate_transition,
 )
 from opportunityos.infrastructure.database import (
     ActionItemRow,
+    ApplicationRow,
     AssessmentRow,
     CanonicalFactRow,
     DecisionEventRow,
     EligibilityCheckRow,
     EvaluationRow,
+    FollowUpStateRow,
     OpportunityRow,
     RequirementRow,
     SourceRow,
@@ -503,6 +504,9 @@ class DecisionService:
             for evaluation in evaluations:
                 latest.setdefault(evaluation.opportunity_id, evaluation)
             opportunities = {row.id: row for row in session.scalars(select(OpportunityRow)).all()}
+            applications = {
+                row.opportunity_id: row for row in session.scalars(select(ApplicationRow)).all()
+            }
             projection_version = int(
                 session.scalar(select(func.sum(CanonicalFactRow.projection_version))) or 0
             )
@@ -528,14 +532,33 @@ class DecisionService:
                 ):
                     continue
                 urgency = urgency_score(opportunity.deadline_at, now)
-                time_fit = time_fit_score(action.estimated_minutes, minutes)
-                priority = priority_score(
-                    net_value=evaluation.net_value_score,
+                dependency_statuses = {
+                    dependency_id: session.get(ActionItemRow, dependency_id)
+                    for dependency_id in action.dependencies
+                }
+                dependencies_ready = all(
+                    dependency.status == ActionStatus.COMPLETE.value
+                    for dependency in dependency_statuses.values()
+                    if dependency is not None
+                ) and len(dependency_statuses) == len(action.dependencies)
+                application = applications.get(action.opportunity_id)
+                packet_ready = bool(application and application.state == LifecycleState.READY.value)
+                unlocks_submission = "submit" in action.action_type.lower() or (
+                    packet_ready and action.action_type in {"review_packet", "review_submission"}
+                )
+                priority = execution_priority(
+                    opportunity_value=evaluation.net_value_score,
                     urgency=urgency,
                     readiness=action.readiness_score,
-                    time_fit=time_fit,
+                    remaining_minutes=action.estimated_minutes,
+                    available_minutes=minutes,
                     completion_ratio=action.completion_ratio,
+                    dependencies_ready=dependencies_ready,
+                    packet_ready=packet_ready,
+                    unlocks_submission=unlocks_submission,
                 )
+                if priority <= 0:
+                    continue
                 ranked.append(
                     {
                         "action_id": action.id,
@@ -547,9 +570,12 @@ class DecisionService:
                         "decision": evaluation.decision_label,
                         "net_value_score": evaluation.net_value_score,
                         "priority_score": priority,
+                        "packet_ready": packet_ready,
+                        "remaining_human_minutes": action.estimated_minutes,
                         "reason": (
                             f"Value {evaluation.net_value_score:.1f}, urgency {urgency:.1f}, "
-                            f"readiness {action.readiness_score:.1f}, time fit {time_fit:.1f}."
+                            f"readiness {action.readiness_score:.1f}, completion "
+                            f"{action.completion_ratio:.0%}."
                         ),
                     }
                 )
@@ -602,6 +628,42 @@ class DecisionService:
                 )
             opportunity.lifecycle_state = target.value
             opportunity.updated_at = utc_now()
+            if target is LifecycleState.SUBMITTED:
+                submitted_at = occurred_at or utc_now()
+                application = session.scalar(
+                    select(ApplicationRow).where(ApplicationRow.opportunity_id == opportunity_id)
+                )
+                if application is not None:
+                    application.submitted_at = submitted_at
+                    application.updated_at = utc_now()
+                follow_up = session.scalar(
+                    select(FollowUpStateRow).where(
+                        FollowUpStateRow.opportunity_id == opportunity_id
+                    )
+                )
+                earliest = submitted_at + timedelta(
+                    days=self.context.settings.followup.default_days
+                )
+                if follow_up is None:
+                    session.add(
+                        FollowUpStateRow(
+                            id=new_id(),
+                            opportunity_id=opportunity_id,
+                            submitted_at=submitted_at,
+                            expected_response_start=None,
+                            expected_response_end=None,
+                            earliest_followup_at=earliest,
+                            latest_followup_at=None,
+                            followup_prohibited=False,
+                            followup_reason=None,
+                            followup_draft_artifact_id=None,
+                            completed_at=None,
+                        )
+                    )
+                else:
+                    follow_up.submitted_at = submitted_at
+                    follow_up.earliest_followup_at = earliest
+                    follow_up.completed_at = None
             session.add(
                 DecisionEventRow(
                     id=new_id(),

@@ -18,3 +18,21 @@ Recorded 2026-08-21.
 
 `GATED` means exact manual verification remains; it does not mean PASS. Update this file after every
 live compatibility run with date, versions, and observed result.
+
+## V3 discovery activation record
+
+Recorded 2026-08-22. The existing five category scout jobs remain reversible and are paused while
+the two global jobs are enabled:
+
+| Component | Status | Evidence |
+| --- | --- | --- |
+| V3 MCP discovery interface | PASS | `hermes mcp test opportunityos` connected and discovered 68 tools, including begin/query/expand/source-check/finish/coverage/strategy/source/status. |
+| V3 public defaults | PASS | `opportunityos discovery status` reports 17-lens configuration and 06:00/18:00 schedules; settings, migration, and focused discovery tests pass. |
+| Global morning schedule | PASS | Hermes job `26498abdfd3a`, `0 6 * * *`, active, next run 2026-08-22 06:00 America/Chicago. |
+| Global evening schedule | PASS | Hermes job `73081ca4517c`, `0 18 * * *`, active, next run 2026-08-22 18:00 America/Chicago. |
+| Legacy category schedules | PAUSED | `524cd2c42dac`, `b995d9173f16`, `59570c67ac3c`, `f77c6d8c3073`, and `ec6db71873e8`; resume these IDs to roll back activation. |
+| Pre-v3 private backup | PASS | Verified private backup created before implementation; see the private backup directory. |
+| Post-v3 private backup | PASS | Verified private backup created 2026-08-22T03:27:46Z with SQLite integrity `ok`. |
+| Three consecutive live global cycles | GATED | Not claimed in this implementation session; scheduled live evidence must accumulate without fabricating search or Discord results. |
+| Current discovery health | GATED | No live V3 cycle has completed yet, so health honestly reports `stale_or_incomplete`. |
+| Package build | GATED | Local venv lacks `hatchling`, and `uv` is unavailable; no build result is claimed. |

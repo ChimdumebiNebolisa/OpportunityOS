@@ -1,14 +1,28 @@
 # Reviewed Hermes cron examples
 
-Create these only after interactive MCP, skills, Discord allowlist, and quiet-scout tests pass.
-Schedules use the Hermes host timezone. Start with one daily category and inspect its first run.
+Create these only after interactive MCP, skills, Discord allowlist, and quiet-discovery tests pass.
+Schedules use the Hermes host timezone, which must match the configured OpportunityOS timezone.
+The V3 default is two global cycles; keep the legacy category jobs paused while these are active.
 
 ```text
-hermes cron create "0 8 * * *" "Run a bounded scholarship scout. Deliver only a material digest that passes the OpportunityOS gates; otherwise remain silent." --skill opportunityos-scout --name "OpportunityOS scholarships" --deliver discord
+hermes cron create "0 6 * * *" "Run one bounded OpportunityOS V3 global discovery cycle. Load discovery state, cover all enabled lenses, persist bounded query/source outcomes, route candidates through the existing intake and deterministic gates, and deliver only material value; otherwise return [SILENT]." --skill opportunityos-scout --name "OpportunityOS global discovery morning" --deliver discord
 ```
 
 ```text
-hermes cron create "0 9 * * 1,4" "Run a bounded fellowship and research scout. Respect all MCP budgets and persist failures without retry loops." --skill opportunityos-scout --name "OpportunityOS fellowships" --deliver discord
+hermes cron create "0 18 * * *" "Run one bounded OpportunityOS V3 global discovery cycle. Recover one bounded catch-up window if needed, preserve exploration and profile-gap coverage, persist failures honestly, and deliver only material value; otherwise return [SILENT]." --skill opportunityos-scout --name "OpportunityOS global discovery evening" --deliver discord
+```
+
+Legacy V2 category schedule classes remain configurable under private `scouts.schedules` and include
+scholarships, fellowships/research, grants/founder programs, competitions/selective technical
+programs, and general high-upside opportunities. Keep those jobs paused when the V3 globals run.
+Add behavioral jobs only after interactive MCP, Discord allowlist, and quiet-run checks pass:
+
+```text
+hermes cron create "0 18 * * *" "Run opportunityos-execution; deliver one material risk reminder or [SILENT]." --skill opportunityos-execution --name "OpportunityOS evening rescue" --deliver discord
+hermes cron create "0 10 * * *" "Run opportunityos-brief daily; deliver the material brief or [SILENT]." --skill opportunityos-brief --name "OpportunityOS daily brief" --deliver discord
+hermes cron create "0 11 * * 0" "Run opportunityos-brief weekly; deliver the advisory strategy brief or [SILENT]." --skill opportunityos-brief --name "OpportunityOS weekly strategy" --deliver discord
+hermes cron create "0 12 * * *" "Run opportunityos-followup; prepare private due drafts and deliver only a material notice." --skill opportunityos-followup --name "OpportunityOS follow-up" --deliver discord
+hermes cron create "30 12 * * *" "Run opportunityos-health; report actionable health or backup failures only." --skill opportunityos-health --name "OpportunityOS health" --deliver discord
 ```
 
 Inspect, test, and pause with:

@@ -3,7 +3,7 @@
 ## Health and location
 
 Run `opportunityos status` for data paths, database integrity, privacy audit, integration gates, and
-recent scout state. Hermes discovery checks PATH first and then its documented per-user installation
+recent category-scout and V3 global-discovery state. Hermes discovery checks PATH first and then its documented per-user installation
 locations, so a shell opened before the installer updated PATH still reports the installed runtime.
 The status separates Hermes installation, Codex OAuth, OpportunityOS MCP configuration, private
 Discord configuration, gateway process state, and an external live round trip. `opportunityos
@@ -47,6 +47,39 @@ day. A candidate can appear in a digest only after the current evaluation, offic
 status, future deadline, score, and confidence gates all pass; otherwise the run finishes quietly.
 Delivered evaluation/version fingerprints are durable, so an unchanged strong candidate is quiet on
 later runs and can reappear only after a materially changed, current evaluation passes the gate.
+
+V2 category scout calls remain supported and keep their existing budgets and delivery gates. V3
+keeps Hermes cron as the scheduler for two global cycles, defaulting to 06:00 and 18:00 in the
+configured local timezone. Start a cycle with `opportunityos discovery begin`; record bounded query
+and source outcomes with the matching discovery commands; inspect `discovery coverage RUN_ID` when
+needed; and finish with explicit completed/skipped lenses. A missed cycle produces one bounded
+catch-up origin rather than replaying every missed occurrence. Use `discovery strategies`,
+`discovery sources --due-only`, and `discovery status` for private recovery inspection.
+
+Discovery metrics, branch mechanics, source checks, and saturation are silent by default. Scheduled
+skills return `[SILENT]` when no material item clears the existing candidate and delivery gates.
+
+## Execution, reminders, and briefs
+
+Use `opportunityos execution-next --minutes 30` for one primary action and
+`opportunityos execution-risk --minutes 30` for high-value unfinished work that may need a
+reminder. Reminders respect `notifications.daily_cap`, quiet hours, snooze, stop, and material
+fingerprints. `opportunityos brief daily`, `brief evening`, and `brief weekly` return silent results
+when there is nothing material to deliver. Weekly strategy output is advisory and never changes
+scoring automatically.
+
+`opportunityos followup-due` checks only explicitly submitted opportunities. A follow-up draft is
+private and is never sent automatically. Disable controls locally with
+`opportunityos automation-control <key> false`; list effective values with
+`opportunityos automation-controls`.
+
+## Automatic preparation and health
+
+`opportunityos auto-prepare-gate OPPORTUNITY_ID` records the deterministic V2 gate. Automatic
+execution requires a current high-confidence APPLY opportunity and reuses the grounded V1 packet
+compiler; it stops at private artifacts. `opportunityos health` reports database, category-scout, global-discovery, configured-schedule, and
+backup freshness without inspecting credentials. `opportunityos backup-auto` reuses the verified
+SQLite backup path and applies bounded private retention.
 
 ## Lifecycle
 

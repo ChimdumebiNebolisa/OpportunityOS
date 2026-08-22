@@ -10,10 +10,13 @@ from sqlalchemy import func, select
 from opportunityos.application.common import audit, idempotent_result, store_idempotent
 from opportunityos.application.context import ApplicationContext
 from opportunityos.infrastructure.database import (
+    AutomationControlRow,
     CanonicalFactRow,
+    DiscoveryRunRow,
     EvaluationRow,
     OpportunityRow,
     ScoutRunRow,
+    SearchBranchRow,
     SourceRow,
 )
 from opportunityos.schemas import DecisionLabel, ScoutRunInput
@@ -26,7 +29,22 @@ class ScoutService:
 
     def begin(self, value: ScoutRunInput, *, idempotency_key: str | None = None) -> dict[str, Any]:
         operation = "scout.begin"
-        configured = self.context.settings.scouts.model_dump()
+        if not self.context.settings.automation.enabled or not self.context.settings.scouts.enabled:
+            raise ValueError("Scout automation is disabled")
+        budget_keys = {
+            "max_queries",
+            "max_candidate_pages",
+            "max_deep_evaluations",
+            "max_model_calls",
+            "max_duration_seconds",
+            "max_notifications",
+            "daily_model_calls",
+        }
+        configured = {
+            key: value
+            for key, value in self.context.settings.scouts.model_dump().items()
+            if key in budget_keys
+        }
         budget = {
             key: min(int(value.budget.get(key, maximum)), int(maximum))
             for key, maximum in configured.items()
@@ -37,6 +55,12 @@ class ScoutService:
             previous = idempotent_result(session, idempotency_key, operation)
             if previous:
                 return previous
+            automation_control = session.get(AutomationControlRow, "automation")
+            scouts_control = session.get(AutomationControlRow, "scouts")
+            if (automation_control and not automation_control.enabled) or (
+                scouts_control and not scouts_control.enabled
+            ):
+                raise ValueError("Scout automation is disabled by a local control")
             previous_run = session.scalar(
                 select(ScoutRunRow)
                 .where(
@@ -52,7 +76,10 @@ class ScoutService:
                 if ended.tzinfo is None:
                     ended = ended.replace(tzinfo=UTC)
                 if now - ended > timedelta(days=1):
-                    catch_up_from = ended
+                    catch_up_from = max(
+                        ended,
+                        now - timedelta(days=self.context.settings.scouts.catch_up_days),
+                    )
             run_id = new_id()
             session.add(
                 ScoutRunRow(
@@ -302,6 +329,47 @@ class ScoutService:
             store_idempotent(session, idempotency_key, operation, result)
             return result
 
+    def abort(
+        self, run_id: str, *, reason: str = "scout run stopped by operator"
+    ) -> dict[str, Any]:
+        """Close an interrupted run without fabricating success or delivery."""
+        if not reason.strip():
+            raise ValueError("Abort reason is required")
+        with self.context.database.transaction() as session:
+            run = session.get(ScoutRunRow, run_id)
+            if run is None or run.status not in {"running", "budget_stopped"}:
+                raise ValueError("Abortable scout run not found")
+            run.status = "failed"
+            run.ended_at = utc_now()
+            run.delivery_result = "silent"
+            run.errors = [*run.errors, reason[:500]]
+            branch = session.get(SearchBranchRow, run.branch_id) if run.branch_id else None
+            if branch is not None and branch.status == "active":
+                branch.status = "failed"
+                branch.stop_reason = reason[:500]
+                branch.ended_at = run.ended_at
+            discovery = (
+                session.get(DiscoveryRunRow, run.discovery_run_id) if run.discovery_run_id else None
+            )
+            if discovery is not None:
+                discovery.errors = [*discovery.errors, reason[:500]][:20]
+            audit(
+                session,
+                event_type="scout_aborted",
+                reason=reason[:500],
+                subject_type="scout_run",
+                subject_id=run_id,
+                details={"delivery": "silent"},
+            )
+            return {
+                "run_id": run_id,
+                "status": run.status,
+                "delivery_result": run.delivery_result,
+                "reason": reason[:500],
+                "discovery_run_id": run.discovery_run_id,
+                "branch_id": run.branch_id,
+            }
+
     def status(self) -> list[dict[str, Any]]:
         with self.context.database.transaction() as session:
             rows = session.scalars(
@@ -319,6 +387,8 @@ class ScoutService:
                     "ended_at": row.ended_at,
                     "delivery_result": row.delivery_result,
                     "counters": row.counters,
+                    "discovery_run_id": row.discovery_run_id,
+                    "branch_id": row.branch_id,
                 }
                 for row in latest.values()
             ]

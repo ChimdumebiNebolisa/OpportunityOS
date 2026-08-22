@@ -52,8 +52,10 @@ state and cannot submit, message, purchase, or accept terms.
 
 ## 4. Install the skills
 
-Until this repository is published in a Hermes skill catalog, copy the six directories under
-`skills/` into `%LOCALAPPDATA%\hermes\skills\`, preserving directory names. Check them with:
+Until this repository is published in a Hermes skill catalog, copy every directory under
+`skills/` into `%LOCALAPPDATA%\hermes\skills\`, preserving directory names. This includes the
+V2 behavioral skills `opportunityos-execution`, `opportunityos-brief`,
+`opportunityos-followup`, and `opportunityos-health`. Check them with:
 
 ```powershell
 hermes skills list
@@ -61,13 +63,16 @@ hermes skills check
 ```
 
 Ask Hermes to run `opportunityos-profile-sync`, then `opportunityos-intake`, `-evaluate`, `-review`,
-or `-prepare`. Add `opportunityos-scout` only after interactive flows pass.
+or `-prepare`. Add `opportunityos-scout` only after interactive flows pass; it now orchestrates
+the V3 global discovery cycle while retaining V1/V2 category-scout compatibility.
 
 ## 5. Gateway and automation
 
 Configure messaging interactively with `hermes gateway setup`, then use `hermes gateway install` and
 the `status`, `start`, `stop`, or `restart` subcommands. Native Windows uses a per-user Scheduled Task
-or Startup fallback. Configure Discord before any cron job. Cron examples are in
+or Startup fallback. Configure Discord before any cron job. The reviewed V3 cron examples use two
+global jobs at 06:00 and 18:00 in the configured local timezone; do not enable legacy staggered
+category jobs at the same time unless deliberately testing compatibility. Cron examples are in
 `examples/hermes-cron.md`; installing a skill does not silently schedule it.
 
 Upstream references: [installation](https://hermes-agent.nousresearch.com/docs/getting-started/installation/),

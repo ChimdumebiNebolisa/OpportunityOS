@@ -249,15 +249,70 @@ class ClaimInput(BaseModel):
 
 
 class ScoutRunInput(BaseModel):
-    category: Literal[
-        "scholarship",
-        "fellowship_research",
-        "grant_founder",
-        "competition_technical",
-        "general_high_upside",
-    ]
+    category: str = Field(min_length=1, max_length=100)
     query_plan: list[str] = Field(default_factory=list, max_length=100)
-    budget: dict[str, int]
+    # The CLI and Hermes may pass the full typed scout settings object. The
+    # application service filters this down to numeric budget controls.
+    budget: dict[str, Any]
+
+
+class DiscoveryQueryInput(BaseModel):
+    branch_id: str = Field(min_length=1, max_length=36)
+    strategy_id: str = Field(min_length=1, max_length=36)
+    query: str = Field(min_length=1, max_length=500)
+    pages: int = Field(default=0, ge=0, le=100_000)
+    model_calls: int = Field(default=0, ge=0, le=100_000)
+    raw: int = Field(default=0, ge=0, le=100_000)
+    novel: int = Field(default=0, ge=0, le=100_000)
+    qualified: int = Field(default=0, ge=0, le=100_000)
+    duplicate: int = Field(default=0, ge=0, le=100_000)
+    official_verified: int = Field(default=0, ge=0, le=100_000)
+    deep_evaluated: int = Field(default=0, ge=0, le=100_000)
+    eligible: int = Field(default=0, ge=0, le=100_000)
+    apply: int = Field(default=0, ge=0, le=100_000)
+    maybe: int = Field(default=0, ge=0, le=100_000)
+    passed: int = Field(default=0, ge=0, le=100_000)
+    stale: int = Field(default=0, ge=0, le=100_000)
+    closed: int = Field(default=0, ge=0, le=100_000)
+    failures: int = Field(default=0, ge=0, le=100_000)
+
+
+class DiscoveryExpansionInput(BaseModel):
+    parent_branch_id: str = Field(min_length=1, max_length=36)
+    lens: str = Field(min_length=1, max_length=100)
+    query: str = Field(min_length=1, max_length=500)
+    generation_reason: str = Field(min_length=1, max_length=500)
+    trigger: Literal[
+        "apply",
+        "high_value_maybe",
+        "high_yield_source",
+        "new_archetype",
+        "promising_term",
+        "profile_gap",
+        "similarity",
+    ]
+    seed_opportunity_id: str | None = Field(default=None, max_length=36)
+    seed_source_id: str | None = Field(default=None, max_length=36)
+
+
+class DiscoverySourceCheckInput(BaseModel):
+    locator: str = Field(min_length=1, max_length=2000)
+    canonical_name: str = Field(min_length=1, max_length=300)
+    source_type: str = Field(min_length=1, max_length=100)
+    official_or_secondary: Literal["official", "secondary"]
+    supported_lenses: list[str] = Field(min_length=1, max_length=20)
+    trust_class: str = Field(min_length=1, max_length=100)
+    check_cadence_hours: int = Field(default=168, ge=1, le=8760)
+    successful_discoveries: int = Field(default=0, ge=0, le=100_000)
+    apply_discoveries: int = Field(default=0, ge=0, le=100_000)
+    maybe_discoveries: int = Field(default=0, ge=0, le=100_000)
+    duplicates: int = Field(default=0, ge=0, le=100_000)
+    closed_or_stale: int = Field(default=0, ge=0, le=100_000)
+    failed: bool = False
+    changed: bool = False
+    preferred_method: str = Field(default="direct", min_length=1, max_length=100)
+    disabled: bool = False
+    disabled_reason: str | None = Field(default=None, max_length=500)
 
 
 class ResultEnvelope(BaseModel):

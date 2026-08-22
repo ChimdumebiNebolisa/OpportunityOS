@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 from platformdirs import PlatformDirs
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ScoringSettings(BaseModel):
@@ -29,6 +29,128 @@ class ScoutBudget(BaseModel):
     daily_model_calls: int = Field(default=80, ge=0, le=2000)
 
 
+class ScoutSettings(ScoutBudget):
+    enabled: bool = True
+    schedules: dict[str, str] = Field(
+        default_factory=lambda: {
+            "scholarship": "daily morning",
+            "fellowship_research": "monday,wednesday,friday morning",
+            "grant_founder": "tuesday,friday morning",
+            "competition_technical": "tuesday,saturday morning",
+            "general_high_upside": "sunday afternoon",
+        }
+    )
+    catch_up_days: int = Field(default=7, ge=1, le=30)
+
+
+class DiscoverySettings(BaseModel):
+    enabled: bool = True
+    schedules: list[str] = Field(default_factory=lambda: ["06:00", "18:00"])
+    lenses: list[str] = Field(
+        default_factory=lambda: [
+            "scholarship",
+            "fellowship",
+            "undergraduate_research",
+            "research_collaboration",
+            "grant",
+            "founder_program",
+            "idea_stage_funding",
+            "competition",
+            "selective_technical",
+            "open_source",
+            "ai_ml",
+            "ai_safety_security",
+            "systems_infrastructure",
+            "technical_entrepreneurship",
+            "wildcard",
+            "profile_gap",
+            "similar_to_valued",
+        ]
+    )
+    max_queries: int = Field(default=120, ge=34, le=1000)
+    max_candidate_pages: int = Field(default=250, ge=1, le=5000)
+    max_deep_evaluations: int = Field(default=40, ge=1, le=500)
+    max_model_calls: int = Field(default=120, ge=0, le=2000)
+    max_duration_seconds: int = Field(default=2700, ge=60, le=86400)
+    max_notifications: int = Field(default=3, ge=0, le=100)
+    max_adaptive_depth: int = Field(default=3, ge=0, le=10)
+    baseline_min_query_families: int = Field(default=2, ge=1, le=10)
+    productive_percent: int = Field(default=70, ge=0, le=100)
+    strategic_percent: int = Field(default=15, ge=0, le=100)
+    exploratory_percent: int = Field(default=15, ge=1, le=100)
+    exploration_floor_percent: int = Field(default=15, ge=1, le=100)
+    source_check_budget: int = Field(default=10, ge=0, le=500)
+    daily_model_calls: int = Field(default=240, ge=0, le=5000)
+    daily_queries: int = Field(default=240, ge=1, le=10000)
+    minimum_interval_minutes: int = Field(default=600, ge=0, le=1440)
+    catch_up_days: int = Field(default=2, ge=1, le=14)
+    saturation_no_novel_queries: int = Field(default=8, ge=1, le=100)
+    saturation_no_qualified_queries: int = Field(default=15, ge=1, le=200)
+    saturation_duplicate_rate: float = Field(default=0.80, ge=0, le=1)
+
+    @model_validator(mode="after")
+    def validate_allocation(self) -> DiscoverySettings:
+        if self.productive_percent + self.strategic_percent + self.exploratory_percent != 100:
+            raise ValueError("Discovery allocation percentages must total 100")
+        if self.exploration_floor_percent > self.exploratory_percent:
+            raise ValueError("Exploration floor cannot exceed exploratory allocation")
+        if len(self.schedules) != 2:
+            raise ValueError("Discovery requires exactly two default schedule times")
+        return self
+
+
+class AutoPrepareSettings(BaseModel):
+    enabled: bool = True
+    score_threshold: float = Field(default=90, ge=0, le=100)
+    confidence_threshold: float = Field(default=0.85, ge=0, le=1)
+    freshness_hours: int = Field(default=24, ge=1, le=720)
+    max_per_day: int = Field(default=2, ge=0, le=100)
+
+
+class ExecutionSettings(BaseModel):
+    high_value_threshold: float = Field(default=80, ge=0, le=100)
+    deadline_rescue_hours: int = Field(default=72, ge=1, le=720)
+    nudge_min_score: float = Field(default=65, ge=0, le=100)
+
+
+class NotificationSettings(BaseModel):
+    enabled: bool = True
+    daily_cap: int = Field(default=3, ge=0, le=100)
+    quiet_hours_start: str = "22:00"
+    quiet_hours_end: str = "08:00"
+    default_snooze_hours: int = Field(default=24, ge=1, le=720)
+
+
+class BriefSettings(BaseModel):
+    daily_enabled: bool = True
+    evening_rescue_enabled: bool = True
+    weekly_strategy_enabled: bool = True
+    max_items: int = Field(default=5, ge=1, le=20)
+    minimum_strategy_evidence: int = Field(default=5, ge=1, le=1000)
+
+
+class FollowUpSettings(BaseModel):
+    enabled: bool = True
+    default_days: int = Field(default=14, ge=1, le=365)
+
+
+class BackupSettings(BaseModel):
+    auto_enabled: bool = True
+    daily_retention: int = Field(default=7, ge=1, le=100)
+    weekly_retention: int = Field(default=4, ge=1, le=100)
+    monthly_retention: int = Field(default=3, ge=1, le=100)
+
+
+class HealthSettings(BaseModel):
+    enabled: bool = True
+    max_scout_silence_hours: int = Field(default=36, ge=1, le=720)
+    backup_stale_hours: int = Field(default=168, ge=1, le=2160)
+
+
+class AutomationSettings(BaseModel):
+    enabled: bool = True
+
+
 class Settings(BaseModel):
     schema_version: str = "1"
     timezone: str = "America/Chicago"
@@ -39,7 +161,16 @@ class Settings(BaseModel):
     max_web_bytes: int = Field(default=5_242_880, ge=1024)
     web_timeout_seconds: float = Field(default=15, gt=0, le=120)
     scoring: ScoringSettings
-    scouts: ScoutBudget = Field(default_factory=ScoutBudget)
+    automation: AutomationSettings = Field(default_factory=AutomationSettings)
+    scouts: ScoutSettings = Field(default_factory=ScoutSettings)
+    discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
+    auto_prepare: AutoPrepareSettings = Field(default_factory=AutoPrepareSettings)
+    execution: ExecutionSettings = Field(default_factory=ExecutionSettings)
+    notifications: NotificationSettings = Field(default_factory=NotificationSettings)
+    briefs: BriefSettings = Field(default_factory=BriefSettings)
+    followup: FollowUpSettings = Field(default_factory=FollowUpSettings)
+    backup: BackupSettings = Field(default_factory=BackupSettings)
+    health: HealthSettings = Field(default_factory=HealthSettings)
     data_dir: Path
     config_dir: Path
     repository_root: Path

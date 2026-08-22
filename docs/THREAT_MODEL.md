@@ -17,6 +17,9 @@ tokens, audit history, and backups are sensitive. Repository source and syntheti
 | Unauthorized Discord control | Hermes deny-by-default numeric allowlist, private DMs, limited attachment type/size | Any allowed user may invoke other enabled Hermes tools. |
 | Credential exposure | OpportunityOS never reads Hermes auth/token stores; redacted errors; public audit | Credentials remain in Hermes' security boundary. |
 | Runaway scouts/cost | Per-run query/page/model/time/notification caps, persisted budget stops, daily configuration | Hermes/provider accounting may differ; plan quotas are not estimated. |
+| Discovery recursion and budget abuse | Typed bounded query observations, per-lens floors, global/page/model/time/deep/source/daily caps, max adaptive depth, idempotency, and saturation/reallocation state | A provider may still return low-value results within an allowed budget. |
+| Search-memory poisoning | Normalized private strategy/source registry, bounded lineage and reasons, deterministic yield, official-source and existing candidate gates | Incorrect operator-approved metrics can bias later prioritization; inspect coverage and source state. |
+| Prompt injection in search results | Search text and source bodies are untrusted data; trigger/reason enums, no source-controlled tools, and candidate funnel ownership in Python | Hermes may still summarize malicious text poorly; verify official evidence. |
 | Unwanted external action | No MCP/CLI tool for submission, messaging, purchase, terms, or account mutation | Unrelated Hermes tools are outside OpportunityOS' control. |
 
 ## Assumptions
