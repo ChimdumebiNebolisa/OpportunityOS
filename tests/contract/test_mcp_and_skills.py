@@ -22,6 +22,15 @@ def test_mcp_catalog_is_typed_and_has_no_external_actions() -> None:
     required = {
         "profile_get_current",
         "profile_submit_observations",
+        "profile_intelligence_begin",
+        "profile_intelligence_record",
+        "profile_intelligence_sync_source",
+        "profile_intelligence_finish",
+        "profile_intelligence_status",
+        "profile_source_get_capabilities",
+        "profile_source_get_sync_state",
+        "profile_source_update_sync_state",
+        "profile_reconciliation_batches",
         "review_resolve",
         "opportunity_submit_input",
         "opportunity_submit_extraction",
@@ -78,7 +87,7 @@ def test_mcp_catalog_is_typed_and_has_no_external_actions() -> None:
 def test_every_skill_tool_reference_exists() -> None:
     tools = {tool.name for tool in asyncio.run(mcp.list_tools())}
     pattern = re.compile(
-        r"`((?:profile_(?:get|submit|rebuild|sync)|review_(?:list|get|resolve|defer)|"
+        r"`((?:profile_(?:get|submit|rebuild|sync|intelligence|source|reconciliation)|review_(?:list|get|resolve|defer)|"
         r"opportunity_(?:submit|get|find|reverify)|eligibility_evaluate|assessment_submit|"
         r"evaluation_(?:compute|get)|queue_(?:list|next)|action_(?:create|complete|skip)|"
         r"application_(?:create|prepare|store|mark)|lifecycle_update|"

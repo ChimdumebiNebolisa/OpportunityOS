@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpportunityOS Profile Intelligence"
+  short_description: "Refresh authorized profile evidence safely"
+  default_prompt: "Run the bounded daily OpportunityOS personal-intelligence sweep and report only material review or health items."

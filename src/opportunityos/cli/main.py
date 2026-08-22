@@ -20,6 +20,7 @@ from opportunityos.application.followup import FollowUpService
 from opportunityos.application.health import HealthService
 from opportunityos.application.operations import OperationsService
 from opportunityos.application.opportunities import OpportunityService
+from opportunityos.application.personal_intelligence import PersonalIntelligenceService
 from opportunityos.application.profile import ProfileService
 from opportunityos.application.propagation import PropagationService
 from opportunityos.application.scouts import ScoutService
@@ -29,6 +30,10 @@ from opportunityos.schemas import (
     DiscoveryQueryInput,
     DiscoverySourceCheckInput,
     LifecycleState,
+    PersonalSourceBatchInput,
+    PersonalSourceControlInput,
+    PersonalSourceType,
+    ProfileIntelligenceFinishInput,
     ResolutionInput,
     ScoutRunInput,
 )
@@ -36,6 +41,8 @@ from opportunityos.security import audit_public_repository
 
 app = typer.Typer(no_args_is_help=True, help="Evidence-backed local opportunity intelligence.")
 profile_app = typer.Typer(no_args_is_help=True, help="Profile evidence and projection.")
+profile_intelligence_app = typer.Typer(no_args_is_help=True, help="Daily personal intelligence.")
+profile_source_app = typer.Typer(no_args_is_help=True, help="Personal source controls and state.")
 review_app = typer.Typer(no_args_is_help=True, help="Human review inbox.")
 opportunity_app = typer.Typer(no_args_is_help=True, help="Opportunity records.")
 lifecycle_app = typer.Typer(no_args_is_help=True, help="Opportunity lifecycle.")
@@ -43,6 +50,8 @@ scout_app = typer.Typer(no_args_is_help=True, help="Bounded Hermes scout state."
 discovery_app = typer.Typer(no_args_is_help=True, help="Global V3 discovery state and coverage.")
 audit_app = typer.Typer(no_args_is_help=True, help="Public repository safety.")
 app.add_typer(profile_app, name="profile")
+profile_app.add_typer(profile_intelligence_app, name="intelligence")
+profile_app.add_typer(profile_source_app, name="source")
 app.add_typer(review_app, name="review")
 app.add_typer(opportunity_app, name="opportunity")
 app.add_typer(lifecycle_app, name="lifecycle")
@@ -103,6 +112,88 @@ def profile_import(path: Path) -> None:
 @profile_app.command("sync-github")
 def profile_sync_github(username: str) -> None:
     _emit(ProfileService(_context()).sync_github(username))
+
+
+@profile_intelligence_app.command("status")
+def profile_intelligence_status() -> None:
+    _emit(PersonalIntelligenceService(_context()).status())
+
+
+@profile_intelligence_app.command("begin")
+def profile_intelligence_begin(idempotency_key: str | None = typer.Option(None)) -> None:
+    _emit(PersonalIntelligenceService(_context()).begin(idempotency_key=idempotency_key))
+
+
+@profile_intelligence_app.command("run")
+def profile_intelligence_run(idempotency_key: str | None = typer.Option(None)) -> None:
+    _emit(PersonalIntelligenceService(_context()).run_once(idempotency_key=idempotency_key))
+
+
+@profile_intelligence_app.command("record")
+def profile_intelligence_record(
+    run_id: str,
+    source_type: PersonalSourceType,
+    batch_json: Path,
+    idempotency_key: str | None = typer.Option(None),
+) -> None:
+    payload = json.loads(batch_json.read_text(encoding="utf-8"))
+    payload["source_type"] = source_type.value
+    _emit(
+        PersonalIntelligenceService(_context()).record_source(
+            run_id,
+            PersonalSourceBatchInput.model_validate(payload),
+            idempotency_key=idempotency_key,
+        )
+    )
+
+
+@profile_intelligence_app.command("finish")
+def profile_intelligence_finish(
+    run_id: str,
+    delivery_result: str = typer.Option("silent"),
+    idempotency_key: str | None = typer.Option(None),
+) -> None:
+    _emit(
+        PersonalIntelligenceService(_context()).finish(
+            run_id,
+            ProfileIntelligenceFinishInput(delivery_result=delivery_result),
+            idempotency_key=idempotency_key,
+        )
+    )
+
+
+@profile_source_app.command("list")
+def profile_source_list() -> None:
+    _emit(PersonalIntelligenceService(_context()).sync_states())
+
+
+@profile_source_app.command("capabilities")
+def profile_source_capabilities() -> None:
+    _emit(PersonalIntelligenceService(_context()).capabilities())
+
+
+@profile_source_app.command("set")
+def profile_source_set(
+    source_type: PersonalSourceType,
+    enabled: bool = typer.Option(True),
+    mode: str | None = typer.Option(None),
+    reason: str = typer.Option("user control"),
+) -> None:
+    _emit(
+        PersonalIntelligenceService(_context()).set_source_control(
+            PersonalSourceControlInput(
+                source_type=source_type,
+                enabled=enabled,
+                mode=mode,
+                reason=reason,
+            )
+        )
+    )
+
+
+@profile_intelligence_app.command("review-batches")
+def profile_intelligence_review_batches(limit: int = typer.Option(10, min=1, max=100)) -> None:
+    _emit(PersonalIntelligenceService(_context()).review_batches(limit=limit))
 
 
 @profile_app.command("rebuild")

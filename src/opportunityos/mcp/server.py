@@ -23,6 +23,7 @@ from opportunityos.application.followup import FollowUpService
 from opportunityos.application.health import HealthService
 from opportunityos.application.operations import OperationsService
 from opportunityos.application.opportunities import OpportunityService
+from opportunityos.application.personal_intelligence import PersonalIntelligenceService
 from opportunityos.application.profile import ProfileService
 from opportunityos.application.propagation import PropagationService
 from opportunityos.application.scouts import ScoutService
@@ -36,6 +37,10 @@ from opportunityos.schemas import (
     LifecycleState,
     ObservationInput,
     OpportunityInput,
+    PersonalSourceBatchInput,
+    PersonalSourceControlInput,
+    PersonalSourceType,
+    ProfileIntelligenceFinishInput,
     RequirementInput,
     ResolutionInput,
     ScoutRunInput,
@@ -111,6 +116,90 @@ def profile_rebuild_projection() -> dict[str, Any]:
 def profile_sync_status() -> dict[str, Any]:
     """Read projection, review, and connector synchronization state."""
     return _safe(lambda: ProfileService(_context()).sync_status())
+
+
+@mcp.tool()
+def profile_intelligence_begin(idempotency_key: str | None = None) -> dict[str, Any]:
+    """Begin one bounded personal-intelligence sweep."""
+    return _safe(
+        lambda: PersonalIntelligenceService(_context()).begin(idempotency_key=idempotency_key)
+    )
+
+
+@mcp.tool()
+def profile_intelligence_record(
+    run_id: str, source_batch: dict[str, Any], idempotency_key: str | None = None
+) -> dict[str, Any]:
+    """Record bounded read-only source evidence through the canonical profile pipeline."""
+    return _safe(
+        lambda: PersonalIntelligenceService(_context()).record_source(
+            run_id,
+            PersonalSourceBatchInput.model_validate(source_batch),
+            idempotency_key=idempotency_key,
+        )
+    )
+
+
+@mcp.tool()
+def profile_intelligence_sync_source(run_id: str, source_type: str) -> dict[str, Any]:
+    """Run one configured personal adapter without exposing external write operations."""
+    return _safe(
+        lambda: PersonalIntelligenceService(_context()).sync_source(
+            run_id, PersonalSourceType(source_type)
+        )
+    )
+
+
+@mcp.tool()
+def profile_intelligence_finish(
+    run_id: str,
+    finish: dict[str, Any] | None = None,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    """Finish a personal-intelligence sweep with honest partial/blocked state."""
+    return _safe(
+        lambda: PersonalIntelligenceService(_context()).finish(
+            run_id,
+            ProfileIntelligenceFinishInput.model_validate(finish or {}),
+            idempotency_key=idempotency_key,
+        )
+    )
+
+
+@mcp.tool()
+def profile_intelligence_status() -> dict[str, Any]:
+    """Read personal-intelligence run and source state without raw private source bodies."""
+    return _safe(lambda: PersonalIntelligenceService(_context()).status())
+
+
+@mcp.tool()
+def profile_source_get_capabilities() -> dict[str, Any]:
+    """Read actual capabilities and authorization state for each personal source."""
+    return _safe(lambda: {"sources": PersonalIntelligenceService(_context()).capabilities()})
+
+
+@mcp.tool()
+def profile_source_get_sync_state() -> dict[str, Any]:
+    """Read private cursors and bounded sync counters for each personal source."""
+    return _safe(lambda: {"sources": PersonalIntelligenceService(_context()).sync_states()})
+
+
+@mcp.tool()
+def profile_source_update_sync_state(control: dict[str, Any]) -> dict[str, Any]:
+    """Enable, disable, or change the local mode of one personal source."""
+    return _safe(
+        lambda: PersonalIntelligenceService(_context()).set_source_control(
+            PersonalSourceControlInput.model_validate(control)
+        )
+    )
+
+
+@mcp.tool()
+def profile_reconciliation_batches(limit: int = 10) -> dict[str, Any]:
+    """Inspect bounded material profile-review batches."""
+    return _safe(
+        lambda: {"batches": PersonalIntelligenceService(_context()).review_batches(limit=limit)}
+    )
 
 
 @mcp.tool()
