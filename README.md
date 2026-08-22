@@ -57,6 +57,17 @@ execution value and otherwise returns `[SILENT]`.
 V2 category scout calls remain available for compatibility. V3 never changes scoring weights,
 eligibility rules, canonical profile facts, or the no-external-action boundary.
 
+## V3.1 personal intelligence
+
+V3.1 adds a bounded read-only personal-intelligence sweep before the morning discovery cycle. The
+default Hermes schedule is 05:00 in `America/Chicago`; it tracks GitHub, Gmail, and ChatGPT source
+controls independently, records source timestamps and provenance, and reconciles only eligible,
+material candidate observations. Exact duplicate agreement is quiet, conflicts become review items,
+and unsupported providers remain explicitly `GATED` rather than being represented as synchronized.
+The source adapters never submit, send, delete, or mutate remote data. ChatGPT supports an explicit
+snapshot-import seam; continuous ChatGPT synchronization is reported unavailable until a supported
+provider capability exists.
+
 ## Quick start
 
 Requirements:
@@ -143,6 +154,9 @@ tokens, OAuth grants, or background services.
 | Create a verified private backup | `opportunityos backup` |
 | Plan or inspect global V3 discovery | `opportunityos discovery begin`, `opportunityos discovery status` |
 | Inspect V3 coverage and search memory | `opportunityos discovery coverage RUN_ID`, `opportunityos discovery strategies` |
+| Inspect personal-intelligence sources | `opportunityos profile intelligence status`, `opportunityos profile source capabilities` |
+| Run a bounded personal-intelligence sweep | `opportunityos profile intelligence run` |
+| Inspect reconciliation batches | `opportunityos profile intelligence review-batches` |
 | Audit the checkout before publishing | `opportunityos audit public-repo` |
 
 Run `opportunityos --help` or `opportunityos COMMAND --help` for the complete command reference.

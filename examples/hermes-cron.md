@@ -3,6 +3,12 @@
 Create these only after interactive MCP, skills, Discord allowlist, and quiet-discovery tests pass.
 Schedules use the Hermes host timezone, which must match the configured OpportunityOS timezone.
 The V3 default is two global cycles; keep the legacy category jobs paused while these are active.
+The V3.1 personal-intelligence sweep runs before morning discovery. Create it only after the
+personal-intelligence skill passes interactive MCP and capability checks.
+
+```text
+hermes cron create "0 5 * * *" "Run one bounded OpportunityOS V3.1 personal-intelligence sweep. Inspect source capabilities and sync state, read only enabled GitHub/Gmail/ChatGPT sources, record candidate observations with provenance and source timestamps, reconcile material changes through the deterministic profile service, and deliver only material review or capability changes; otherwise return [SILENT]. Never claim unsupported provider synchronization." --skill opportunityos-profile-intelligence --name "OpportunityOS personal intelligence" --deliver discord
+```
 
 ```text
 hermes cron create "0 6 * * *" "Run one bounded OpportunityOS V3 global discovery cycle. Load discovery state, cover all enabled lenses, persist bounded query/source outcomes, route candidates through the existing intake and deterministic gates, and deliver only material value; otherwise return [SILENT]." --skill opportunityos-scout --name "OpportunityOS global discovery morning" --deliver discord

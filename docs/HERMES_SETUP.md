@@ -55,7 +55,8 @@ state and cannot submit, message, purchase, or accept terms.
 Until this repository is published in a Hermes skill catalog, copy every directory under
 `skills/` into `%LOCALAPPDATA%\hermes\skills\`, preserving directory names. This includes the
 V2 behavioral skills `opportunityos-execution`, `opportunityos-brief`,
-`opportunityos-followup`, and `opportunityos-health`. Check them with:
+`opportunityos-followup`, and `opportunityos-health`, plus the V3.1
+`opportunityos-profile-intelligence` skill. Check them with:
 
 ```powershell
 hermes skills list
@@ -64,14 +65,17 @@ hermes skills check
 
 Ask Hermes to run `opportunityos-profile-sync`, then `opportunityos-intake`, `-evaluate`, `-review`,
 or `-prepare`. Add `opportunityos-scout` only after interactive flows pass; it now orchestrates
-the V3 global discovery cycle while retaining V1/V2 category-scout compatibility.
+the V3 global discovery cycle while retaining V1/V2 category-scout compatibility. Run the V3.1
+personal-intelligence skill interactively first and inspect its capability report before enabling its
+05:00 schedule. An unavailable Gmail or continuous ChatGPT provider must remain visibly gated.
 
 ## 5. Gateway and automation
 
 Configure messaging interactively with `hermes gateway setup`, then use `hermes gateway install` and
 the `status`, `start`, `stop`, or `restart` subcommands. Native Windows uses a per-user Scheduled Task
-or Startup fallback. Configure Discord before any cron job. The reviewed V3 cron examples use two
-global jobs at 06:00 and 18:00 in the configured local timezone; do not enable legacy staggered
+or Startup fallback. Configure Discord before any cron job. The reviewed V3.1/V3 cron examples use a
+personal-intelligence job at 05:00 followed by global jobs at 06:00 and 18:00 in the configured local
+timezone; do not enable legacy staggered
 category jobs at the same time unless deliberately testing compatibility. Cron examples are in
 `examples/hermes-cron.md`; installing a skill does not silently schedule it.
 

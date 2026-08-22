@@ -35,4 +35,22 @@ the two global jobs are enabled:
 | Post-v3 private backup | PASS | Verified private backup created 2026-08-22T03:27:46Z with SQLite integrity `ok`. |
 | Three consecutive live global cycles | GATED | Not claimed in this implementation session; scheduled live evidence must accumulate without fabricating search or Discord results. |
 | Current discovery health | GATED | No live V3 cycle has completed yet, so health honestly reports `stale_or_incomplete`. |
-| Package build | GATED | Local venv lacks `hatchling`, and `uv` is unavailable; no build result is claimed. |
+| Package build | PASS | `.venv\\Scripts\\python.exe -m build` produced the source distribution and wheel. |
+
+## V3.1 personal-intelligence activation record
+
+Recorded 2026-08-22. The V3.1 schedule is active and remains reversible; source capabilities are
+reported independently and unsupported providers are not represented as synchronized:
+
+| Component | Status | Evidence |
+| --- | --- | --- |
+| V3.1 MCP personal-intelligence interface | PASS | `hermes mcp test opportunityos` connected and discovered 77 typed tools, including personal run, source, and reconciliation operations. |
+| V3.1 local skill | PASS | Hermes reports 7 enabled local skills, including `opportunityos-profile-intelligence`; `SKILL.md` and its agent metadata are installed under the private Hermes skill root. |
+| Personal-intelligence defaults and migration | PASS | 05:00 `America/Chicago` defaults load; migration and focused V3.1 tests pass. |
+| Personal-intelligence schedule | PASS | Hermes job `4748a197c6ca`, `0 5 * * *`, active, Discord delivery, repository workdir. |
+| GitHub source capability | GATED | No `OPPORTUNITYOS_GITHUB_USERNAME` is configured; runtime reports unavailable without claiming synchronization. |
+| Gmail source capability | GATED | No supported Gmail provider is configured; runtime reports `gmail_provider_unavailable`. |
+| ChatGPT continuous capability | GATED | No supported continuous provider is configured; snapshot-only mode remains available as an explicit control. |
+| V3.1 private backup | PASS | Verified final backup created 2026-08-22T05:26:02Z with SQLite integrity `ok`; private path intentionally omitted. |
+| Local blocked-capability smoke sweep | PASS | `opportunityos profile intelligence run` completed with an honest `partial`/`silent` result, zero records inspected, and explicit blocked details for all three unconfigured sources. |
+| First live personal-intelligence cycle | GATED | Schedule is installed but no live source cycle is claimed in this implementation session. |

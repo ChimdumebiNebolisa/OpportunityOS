@@ -10,9 +10,11 @@ It must never contain real resumes, transcripts, screenshots, profile exports, o
 bot tokens, OAuth credentials, database files, logs, or private absolute paths.
 
 OpportunityOS does not upload analytics. `analytics_uploaded` is always zero. Network access occurs
-only for an explicit URL intake, optional GitHub profile sync, or through Hermes tools the user asks
-to run. ChatGPT/Codex OAuth credentials are owned by Hermes and are never read or stored by
-OpportunityOS.
+only for an explicit URL intake, optional read-only GitHub profile sync, or through Hermes tools the
+user asks to run. V3.1 personal-intelligence adapters are independently controlled and never submit,
+send, delete, or mutate remote data. Gmail and continuous ChatGPT remain gated when their provider
+capability is unavailable; a ChatGPT snapshot is treated as untrusted candidate input.
+ChatGPT/Codex OAuth credentials are owned by Hermes and are never read or stored by OpportunityOS.
 
 Use `opportunityos export` for a private JSON export, `opportunityos backup` for a verified SQLite
 backup, and `opportunityos purge --older-than-days N` for scoped cached-attachment retention. These

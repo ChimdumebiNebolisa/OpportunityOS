@@ -59,6 +59,36 @@ catch-up origin rather than replaying every missed occurrence. Use `discovery st
 Discovery metrics, branch mechanics, source checks, and saturation are silent by default. Scheduled
 skills return `[SILENT]` when no material item clears the existing candidate and delivery gates.
 
+## Personal intelligence
+
+V3.1 runs a bounded personal-intelligence sweep before morning discovery. Hermes owns the default
+05:00 local schedule; OpportunityOS owns the run, source cursors, provenance, candidate-to-canonical
+reconciliation, review batching, and downstream reevaluation. Inspect it with:
+
+```text
+opportunityos profile intelligence status
+opportunityos profile source capabilities
+opportunityos profile source list
+opportunityos profile intelligence review-batches
+```
+
+GitHub, Gmail, and ChatGPT controls are independent. GitHub and Gmail use `disabled` or
+`continuous`; ChatGPT additionally supports `snapshot_only`. Source adapters are read-only and
+advance a cursor only after a successful bounded batch. A failed or unsupported source keeps its
+cursor and is surfaced as `GATED`/blocked. Imported or model-derived content is untrusted: third-
+party, hypothetical, quoted, assistant-summary, and other suppressed assertions remain candidate
+evidence without mutating canonical profile truth. Material differences create review items;
+exact agreement is silent. Change a source control explicitly, for example:
+
+```text
+opportunityos profile source set gmail --enabled false
+opportunityos profile source set chatgpt --mode snapshot_only --enabled true
+```
+
+The scheduled skill returns `[SILENT]` when no material reconciliation or source-health change needs
+delivery. It must not claim Gmail or continuous ChatGPT synchronization when the corresponding
+provider capability is unavailable.
+
 ## Execution, reminders, and briefs
 
 Use `opportunityos execution-next --minutes 30` for one primary action and
