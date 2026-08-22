@@ -12,11 +12,11 @@ durable state and deterministic checks needed to make that work survive a model 
 
 ## What it stores
 
-- **Profile** — flexible user context that helps an agent judge relevance.
-- **Policy** — hard constraints such as freshness, location, official-source, and deadline rules.
-- **Strategy** — human-readable search procedures that can be proposed, reviewed, revisioned, and
+- **Profile**  -  flexible user context that helps an agent judge relevance.
+- **Policy**  -  hard constraints such as freshness, location, official-source, and deadline rules.
+- **Strategy**  -  human-readable search procedures that can be proposed, reviewed, revisioned, and
   rolled back.
-- **History** — SQLite records of runs, candidates, deduplication, feedback, and source statistics.
+- **History**  -  SQLite records of runs, candidates, deduplication, feedback, and source statistics.
 
 The repository contains generic defaults and synthetic tests only. Private state lives in the
 operating system’s application-data directory, or in `OPPORTUNITYOS_DATA_DIR` when configured.

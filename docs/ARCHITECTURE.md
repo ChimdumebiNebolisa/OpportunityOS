@@ -11,10 +11,10 @@ User -> agent runtime -> OpportunityOS CLI -> private YAML + SQLite
 The agent owns conversation, intent interpretation, web search, browsing, extraction, verification
 research, query generation, and user-facing explanation. OpportunityOS owns four durable concepts:
 
-1. **Profile** — flexible user context in `profile.yaml`.
-2. **Policy** — hard, deterministic search constraints in `policy.yaml`.
-3. **Strategy** — transparent, revisioned search guidance in `strategy.yaml`.
-4. **History** — SQLite records in `state.db`.
+1. **Profile**  -  flexible user context in `profile.yaml`.
+2. **Policy**  -  hard, deterministic search constraints in `policy.yaml`.
+3. **Strategy**  -  transparent, revisioned search guidance in `strategy.yaml`.
+4. **History**  -  SQLite records in `state.db`.
 
 ## Runtime boundary
 

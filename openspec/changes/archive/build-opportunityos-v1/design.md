@@ -96,7 +96,7 @@ Visual direction: calm operational clarity rather than a generic card dashboard.
 - All MCP, CLI, import, model, web, and file payloads are validated before a transaction. SQL is parameterized through SQLAlchemy.
 - File types, sizes, PDF pages, redirects, response bytes, extraction text, scout counts, and durations are bounded. Unsupported archives and macro-bearing formats are rejected.
 - Prompt-injection detection is defense-in-depth: source text is separately labeled as untrusted; no source-derived shell/path/tool parameters exist; structured outputs are schema checked; only deterministic services mutate canonical state.
-- Logs contain identifiers, reason codes, counts, durations, and redacted failures—not secrets or raw sensitive bodies. Repository audit scans tracked/untracked files without echoing detected secret values.
+- Logs contain identifiers, reason codes, counts, durations, and redacted failures - not secrets or raw sensitive bodies. Repository audit scans tracked/untracked files without echoing detected secret values.
 - Discord authorization is delegated to Hermes' deny-all allowlist, documented and checked from safe configuration metadata when available. OAuth stays in Hermes' auth store.
 
 ### 9. Verification uses stable interfaces and synthetic fixtures
