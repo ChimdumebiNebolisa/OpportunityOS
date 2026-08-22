@@ -25,6 +25,8 @@ from opportunityos.infrastructure.database import (
     DiscoveryRunRow,
     EvaluationRow,
     HealthStateRow,
+    PersonalSourceSyncStateRow,
+    ProfileIntelligenceRunRow,
     ReviewItemRow,
     ScoutRunRow,
 )
@@ -279,6 +281,35 @@ class OperationsService:
                     select(DiscoveryRunRow).order_by(DiscoveryRunRow.started_at.desc()).limit(5)
                 ).all()
             ]
+            last_profile_intelligence = [
+                {
+                    "run_id": row.id,
+                    "status": row.status,
+                    "delivery_result": row.delivery_result,
+                    "started_at": row.started_at,
+                    "ended_at": row.ended_at,
+                    "completed_sources": row.completed_sources,
+                    "blocked_sources": row.blocked_sources,
+                    "counters": row.counters,
+                }
+                for row in session.scalars(
+                    select(ProfileIntelligenceRunRow)
+                    .order_by(ProfileIntelligenceRunRow.started_at.desc())
+                    .limit(5)
+                ).all()
+            ]
+            profile_sources = [
+                {
+                    "source_type": row.source_type,
+                    "configured_mode": row.configured_mode,
+                    "status": row.status,
+                    "detail_code": row.detail_code,
+                    "cursor": row.cursor,
+                    "last_success_at": row.last_success_at,
+                    "consecutive_failures": row.consecutive_failures,
+                }
+                for row in session.scalars(select(PersonalSourceSyncStateRow)).all()
+            ]
             health_state = [
                 {
                     "component": row.component,
@@ -330,6 +361,13 @@ class OperationsService:
                 "enabled": self.context.settings.discovery.enabled,
                 "schedules": self.context.settings.discovery.schedules,
                 "runs": last_discovery,
+            },
+            "personal_intelligence": {
+                "enabled": self.context.settings.profile_intelligence.enabled,
+                "schedule": self.context.settings.profile_intelligence.schedule,
+                "timezone": self.context.settings.profile_intelligence.timezone,
+                "runs": last_profile_intelligence,
+                "sources": profile_sources,
             },
             "health": health_state,
             "automation_controls": automation_controls,

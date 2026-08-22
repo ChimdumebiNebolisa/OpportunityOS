@@ -69,6 +69,7 @@ class ProfileService:
         *,
         idempotency_key: str | None = None,
         actor: str = "hermes",
+        reconcile: bool = True,
     ) -> dict[str, Any]:
         if not values:
             raise ValueError("At least one observation is required")
@@ -105,6 +106,9 @@ class ProfileService:
                         effective_from=value.effective_from,
                         effective_until=value.effective_until,
                         observed_at=value.observed_at,
+                        source_event_at=value.source_event_at,
+                        subject_identity=value.subject_identity,
+                        content_fingerprint=value.content_fingerprint,
                         extractor_model=value.extractor_model,
                         extraction_schema_version=value.extraction_schema_version,
                         status=ObservationStatus.PENDING.value,
@@ -112,7 +116,11 @@ class ProfileService:
                     )
                 )
             session.flush()
-            plans = [self._rebuild_field(session, field, actor=actor) for field in sorted(fields)]
+            plans = (
+                [self._rebuild_field(session, field, actor=actor) for field in sorted(fields)]
+                if reconcile
+                else []
+            )
             audit(
                 session,
                 event_type="observations_submitted",

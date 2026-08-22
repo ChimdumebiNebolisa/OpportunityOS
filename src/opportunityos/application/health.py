@@ -11,7 +11,12 @@ from sqlalchemy import select
 from opportunityos.application.common import audit
 from opportunityos.application.context import ApplicationContext
 from opportunityos.application.operations import OperationsService
-from opportunityos.infrastructure.database import DiscoveryRunRow, HealthStateRow, ScoutRunRow
+from opportunityos.infrastructure.database import (
+    DiscoveryRunRow,
+    HealthStateRow,
+    ProfileIntelligenceRunRow,
+    ScoutRunRow,
+)
 from opportunityos.util import sha256_file, utc_now
 
 
@@ -106,6 +111,54 @@ class HealthService:
                             "recent_complete" if discovery_healthy else "stale_or_incomplete"
                         ),
                         success=discovery_healthy,
+                    )
+                )
+            if self.context.settings.profile_intelligence.enabled:
+                latest_profile = session.scalar(
+                    select(ProfileIntelligenceRunRow)
+                    .where(ProfileIntelligenceRunRow.status.in_(["completed", "partial"]))
+                    .order_by(ProfileIntelligenceRunRow.ended_at.desc())
+                )
+                profile_recent = bool(
+                    latest_profile
+                    and latest_profile.ended_at
+                    and now
+                    - (
+                        latest_profile.ended_at
+                        if latest_profile.ended_at.tzinfo
+                        else latest_profile.ended_at.replace(tzinfo=UTC)
+                    )
+                    <= timedelta(hours=30)
+                )
+                profile_healthy = bool(
+                    profile_recent
+                    and latest_profile
+                    and latest_profile.status == "completed"
+                    and not latest_profile.blocked_sources
+                )
+                components.append(
+                    self._record(
+                        session,
+                        "personal_intelligence",
+                        status="healthy" if profile_healthy else "unhealthy",
+                        detail_code=(
+                            "recent_complete" if profile_healthy else "stale_or_incomplete"
+                        ),
+                        success=profile_healthy,
+                    )
+                )
+                personal_schedule_ok = bool(
+                    self.context.settings.profile_intelligence.schedule.strip()
+                )
+                components.append(
+                    self._record(
+                        session,
+                        "personal_intelligence_schedule",
+                        status="healthy" if personal_schedule_ok else "unhealthy",
+                        detail_code=(
+                            "configured" if personal_schedule_ok else "missing_configuration"
+                        ),
+                        success=personal_schedule_ok,
                     )
                 )
             latest_scout = session.scalar(
