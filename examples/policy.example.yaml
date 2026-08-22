@@ -1,0 +1,13 @@
+version: 1
+global:
+  require_official_verification: true
+  reject_closed: true
+  reject_expired: true
+categories:
+  jobs:
+    freshness:
+      maximum_age_hours: 24
+      unknown_age: reject
+    location:
+      include: []
+      exclude: []

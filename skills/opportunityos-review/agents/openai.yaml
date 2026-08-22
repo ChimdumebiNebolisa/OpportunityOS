@@ -1,4 +1,0 @@
-interface:
-  display_name: "OpportunityOS Review"
-  short_description: "Resolve one evidence conflict safely"
-  default_prompt: "Use $opportunityos-review to show and resolve the next blocking conflict."

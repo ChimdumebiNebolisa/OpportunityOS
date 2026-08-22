@@ -1,4 +1,0 @@
-interface:
-  display_name: "OpportunityOS health"
-  short_description: "Check health and private backup state"
-  default_prompt: "Use $opportunityos-health to inspect or maintain local OpportunityOS automation health."

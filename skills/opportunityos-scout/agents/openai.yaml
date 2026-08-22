@@ -1,4 +1,0 @@
-interface:
-  display_name: "OpportunityOS Scout"
-  short_description: "Run bounded profile-aware opportunity discovery"
-  default_prompt: "Use $opportunityos-scout to run a bounded scholarship scout."

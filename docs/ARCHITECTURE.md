@@ -1,44 +1,64 @@
-# Architecture
+# OpportunityOS v4 architecture
 
-OpportunityOS is a modular monolith with two transport surfaces and one application layer.
+OpportunityOS is the durable state and deterministic protocol layer between a user and an
+external AI agent.
 
-```mermaid
-flowchart LR
-    U["User"] --> H["Hermes Desktop or Discord DM"]
-    H --> K["Six OpportunityOS skills"]
-    K --> M["Typed stdio MCP"]
-    C["Typer CLI"] --> A["Application services"]
-    M --> A
-    A --> D["Pure deterministic domain rules"]
-    A --> R["Adapters: files, web, GitHub"]
-    A --> Q["SQLite evidence ledger"]
-    A --> F["Private file store"]
+```text
+User -> agent runtime -> OpportunityOS CLI -> private YAML + SQLite
+                    \-> search and browsing tools
 ```
 
-## Responsibilities
+The agent owns conversation, intent interpretation, web search, browsing, extraction, verification
+research, query generation, and user-facing explanation. OpportunityOS owns four durable concepts:
 
-- `domain` owns profile reconciliation, eligibility predicates, scoring, priority, and lifecycle
-  transitions. It has no database, filesystem, network, Hermes, or UI dependency.
-- `application` owns transactions and workflows. Every CLI and MCP operation calls these services.
-- `adapters` isolate network and document parsing behind bounded, validated inputs.
-- `infrastructure` owns private path containment, SQLAlchemy models, SQLite pragmas, and migrations.
-- `mcp` validates typed arguments and returns a stable `{ok,data,error}` envelope.
-- `skills` teach Hermes the workflow. Skills use MCP tools only for OpportunityOS state and treat
-  retrieved content as untrusted data.
+1. **Profile** — flexible user context in `profile.yaml`.
+2. **Policy** — hard, deterministic search constraints in `policy.yaml`.
+3. **Strategy** — transparent, revisioned search guidance in `strategy.yaml`.
+4. **History** — SQLite records in `state.db`.
 
-The system stores observations append-only, derives canonical facts deterministically, persists each
-evaluation with input versions, and writes audit events for material decisions. Subjective model
-assessments are validated inputs; eligibility, score math, thresholds, lifecycle, and queue ordering
-remain code.
+## Runtime boundary
 
-## Conversational surface
+`RuntimePaths` resolves a private application-data directory through `platformdirs`, with
+`OPPORTUNITYOS_DATA_DIR` available for tests and portable installations. The root must not be inside
+the repository and cannot be reached through a symlink or Windows junction.
 
-There is intentionally no separate custom GUI. Hermes owns conversation and Discord transport. A
-response follows one hierarchy: **decision → official source → evidence → risk/unknown → one next
-human step**. The same fields appear in CLI JSON and application decision briefs.
+The public checkout contains schemas, generic defaults, reference guidance, and synthetic tests.
+It must not contain a real profile, policy, strategy, history database, export, or secret.
 
-## Trust boundaries
+## Deterministic core
 
-The repository is public, runtime state is private, the network is hostile, source text is
-untrusted, model output is fallible, and external side effects require a human. See
-[THREAT_MODEL.md](THREAT_MODEL.md).
+The v4 core uses Pydantic for external contracts, `sqlite3` for history, YAML for human-readable
+profile/policy/strategy state, and the standard library for URL normalization and ZIP portability.
+There is no web retrieval, document ingestion, application management, scheduler, dashboard, MCP
+requirement, or custom agent loop.
+
+Candidate identity is the normalized source URL, with a fallback SHA-256 fingerprint over normalized
+organization, title, category, and cycle/year metadata. Tracking parameters and URL fragments are
+removed. Previously seen records are suppressed unless a material change is observed.
+
+Policy evaluates status, deadlines, official verification, freshness, location, and configured
+exclusions. Unknown values stay unknown and follow the configured `allow`, `allow_with_warning`, or
+`reject` behavior. Strategy updates cannot mutate profile, policy, privacy, or permission fields.
+
+## Search protocol
+
+```text
+context(category)
+  -> run start
+  -> agent searches and verifies
+  -> candidate check
+  -> candidate record
+  -> run finish
+  -> feedback
+  -> optional strategy proposal and revision
+```
+
+Agent-facing JSON responses include `schema_version: 1`. Accepted strategy changes create a new
+SQLite revision with reason, evidence, agent/model metadata, diff, and the resulting strategy state.
+Rollback creates a new revision that restores the selected prior state.
+
+## Portability
+
+`opportunityos export` writes a versioned ZIP containing `profile.yaml`, `policy.yaml`,
+`strategy.yaml`, and `state.db`. Import validates every member and the database schema in a staging
+directory before replacing the private state files. No pickle or executable content is accepted.

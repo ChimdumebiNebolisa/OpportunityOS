@@ -1,4 +1,0 @@
-interface:
-  display_name: "OpportunityOS execution"
-  short_description: "Find and protect the highest-value unfinished action"
-  default_prompt: "Use $opportunityos-execution to select the next valuable action or manage its reminder."

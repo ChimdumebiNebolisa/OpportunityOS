@@ -1,4 +1,0 @@
-interface:
-  display_name: "OpportunityOS Intake"
-  short_description: "Verify and evaluate a new opportunity"
-  default_prompt: "Use $opportunityos-intake to verify and evaluate this opportunity."

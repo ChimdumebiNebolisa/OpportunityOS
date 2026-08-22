@@ -1,1 +1,0 @@
-"""Pure deterministic business rules."""

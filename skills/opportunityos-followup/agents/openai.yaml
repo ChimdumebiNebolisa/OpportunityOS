@@ -1,4 +1,0 @@
-interface:
-  display_name: "OpportunityOS follow-up"
-  short_description: "Prepare private follow-up drafts"
-  default_prompt: "Use $opportunityos-followup to check or prepare a due follow-up draft."

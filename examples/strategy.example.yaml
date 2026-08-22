@@ -1,0 +1,6 @@
+version: 1
+global:
+  verification:
+    prefer_primary_sources: true
+    aggregators_are_leads_only: true
+categories: {}

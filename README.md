@@ -1,217 +1,119 @@
 # OpportunityOS
 
-[![CI](https://github.com/ChimdumebiNebolisa/OpportunityOS/actions/workflows/ci.yml/badge.svg)](https://github.com/ChimdumebiNebolisa/OpportunityOS/actions/workflows/ci.yml)
-[![Security](https://github.com/ChimdumebiNebolisa/OpportunityOS/actions/workflows/security.yml/badge.svg)](https://github.com/ChimdumebiNebolisa/OpportunityOS/actions/workflows/security.yml)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+**OpportunityOS is a model-agnostic, self-learning framework for discovering and tracking opportunities across AI models.**
 
-**A local-first, evidence-backed opportunity intelligence system for Hermes Agent.**
+It gives AI agents portable access to a user’s profile, hard search constraints, learned search
+strategies, and opportunity history, so the user can switch models without rebuilding their search
+workflow.
 
-OpportunityOS turns scattered opportunity links, documents, and profile evidence into auditable
-decisions and grounded application packets. Hermes handles conversation, search, and untrusted
-interpretation; OpportunityOS owns private storage, canonical facts, deterministic eligibility,
-ranking, and audit history.
+OpportunityOS is local-first and deliberately small. An external agent owns conversation, web
+search, browsing, interpretation, verification research, and delivery. OpportunityOS owns only the
+durable state and deterministic checks needed to make that work survive a model change.
 
-It is designed for one person running it on their own computer. It never submits an application,
-sends a message, accepts terms, makes a purchase, or deletes remote data.
+## What it stores
 
-## What it does
+- **Profile** — flexible user context that helps an agent judge relevance.
+- **Policy** — hard constraints such as freshness, location, official-source, and deadline rules.
+- **Strategy** — human-readable search procedures that can be proposed, reviewed, revisioned, and
+  rolled back.
+- **History** — SQLite records of runs, candidates, deduplication, feedback, and source statistics.
 
-- Builds a provenance-backed profile from user statements, documents, ChatGPT snapshots, and
-  observable GitHub metadata.
-- Keeps conflicts visible for human review instead of silently overwriting facts.
-- Captures opportunities and verifies requirements against official sources.
-- Computes eligibility, value, confidence, and the next best action with deterministic rules.
-- Compiles seven private, evidence-linked application artifacts without submitting them.
-- Gives Hermes bounded V3 global discovery state with 17 lenses, adaptive branches, source yield,
-  quiet runs, coverage reports, and duplicate-delivery protection.
-- Exposes the same application services through a CLI and a typed stdio MCP server.
+The repository contains generic defaults and synthetic tests only. Private state lives in the
+operating system’s application-data directory, or in `OPPORTUNITYOS_DATA_DIR` when configured.
 
-## V2 proactive behavior
+## Install and initialize
 
-The V2 behavioral layer keeps the V1 deterministic core and adds bounded local autonomy:
+```bash
+uv sync
+uv run opportunityos init
+uv run opportunityos context --category jobs --format json
+```
 
-- configurable category scouts with quiet delivery and missed-run catch-up;
-- high-confidence private auto-preparation gates;
-- execution priority that rewards completion leverage and time fit;
-- proactive reminders with daily caps, quiet hours, snooze, stop, and duplicate suppression;
-- material daily, evening-rescue, and evidence-bounded weekly briefs;
-- explicit-submission follow-up dates and private drafts;
-- profile/opportunity reevaluation, private automatic backups, and actionable health state.
-
-Hermes cron remains the scheduler and Hermes/Discord remains the delivery surface. Python exposes
-local state and redacted content but never submits applications, sends messages, uploads materials,
-purchases, accepts terms, withdraws applications, or mutates remote accounts.
-
-## V3 global discovery
-
-V3 preserves the V1/V2 candidate funnel and adds a persistent global discovery engine. The default
-Hermes schedule is two bounded cycles at 06:00 and 18:00 in `America/Chicago`. Each cycle covers
-scholarships, fellowships, undergraduate research, research collaboration, grants, founder and
-idea-stage programs, competitions, selective technical programs, open source, AI/ML, AI
-safety/security, systems/infrastructure, technical entrepreneurship, wildcard, profile-gap, and
-similar-to-valued lenses. Query families, source cadence, adaptive lineage, saturation, allocation,
-and coverage remain private in SQLite; ordinary delivery includes only material opportunity or
-execution value and otherwise returns `[SILENT]`.
-
-V2 category scout calls remain available for compatibility. V3 never changes scoring weights,
-eligibility rules, canonical profile facts, or the no-external-action boundary.
-
-## Quick start
-
-Requirements:
-
-- Python 3.11 or newer
-- Git
-- Windows PowerShell, or a POSIX shell on macOS/Linux
-
-### Windows
+On Windows, the default state directory is under the user application-data location. It may be
+overridden for tests or portable installations:
 
 ```powershell
-git clone https://github.com/ChimdumebiNebolisa/OpportunityOS.git
-Set-Location OpportunityOS
-.\scripts\setup.ps1
+$env:OPPORTUNITYOS_DATA_DIR = "$env:LOCALAPPDATA\OpportunityOS"
+uv run opportunityos init
 ```
 
-### macOS or Linux
+The runtime creates `profile.yaml`, `policy.yaml`, `strategy.yaml`, and `state.db` outside the Git
+checkout. Users can inspect or update state through the CLI; manual YAML editing is optional.
 
-```sh
-git clone https://github.com/ChimdumebiNebolisa/OpportunityOS.git
-cd OpportunityOS
-sh scripts/setup.sh
+## Agent protocol
+
+An agent performs the search while OpportunityOS provides context and deterministic memory:
+
+```text
+intent -> context -> run start -> agent search and verification
+       -> candidate check/record -> useful delivery -> run finish
+       -> feedback -> optional strategy proposal
 ```
 
-The setup script creates `.venv`, installs the locked dependencies, initializes the private data
-directories and database, and runs `opportunityos doctor`. Hermes, Discord, OAuth, and optional
-GitHub authentication remain clearly marked `GATED` until you configure them.
+Example commands:
 
-To check the installation again on Windows:
-
-```powershell
-.\.venv\Scripts\opportunityos.exe doctor
-.\.venv\Scripts\opportunityos.exe status
+```bash
+opportunityos run start --category jobs --agent hermes --model kimi --format json
+opportunityos candidate check --json candidate.json --format json
+opportunityos candidate record --run RUN_ID --json candidate.json --format json
+opportunityos run finish RUN_ID --json summary.json --format json
+opportunityos feedback add --json feedback.json --format json
 ```
 
-## Try the offline demo
+Candidate input is versioned JSON. Unknown opportunity fields remain unknown rather than being
+invented. Policy failures are reported with structured violations and do not mutate policy.
 
-On a fresh installation, seed a complete synthetic workflow without network access or real personal
-data:
+## CLI reference
 
-```powershell
-.\.venv\Scripts\python.exe scripts\seed_synthetic_demo.py
-.\.venv\Scripts\opportunityos.exe queue
-.\.venv\Scripts\opportunityos.exe next
+```text
+opportunityos init
+opportunityos context --category CATEGORY --format json
+opportunityos profile show|import|export|patch
+opportunityos policy show|patch
+opportunityos run start|finish
+opportunityos candidate check|record
+opportunityos feedback add
+opportunityos strategy show|history|propose|rollback
+opportunityos history recent|search
+opportunityos export opportunityos-export.zip
+opportunityos import opportunityos-export.zip
 ```
 
-The demo writes visibly synthetic records to the same private application-data location used by the
-installed CLI. Its final JSON includes the generated opportunity, evaluation, action, application,
-and packet path, with `external_submission_performed` set to `false`.
+All agent-facing operations are non-interactive and support structured JSON output. Exit status is
+zero for success, one for validation/user errors, two for local state errors, three for incompatible
+state versions, and four for explicit policy enforcement failures.
 
-## Connect Hermes
+## Hermes integration
 
-OpportunityOS is the deterministic backend; Hermes Desktop or a private Discord DM is the intended
-conversational interface.
+Hermes is the reference integration, not a product requirement. Install the single generic skill
+from [`skills/opportunityos/SKILL.md`](skills/opportunityos/SKILL.md) in the host agent’s skills
+directory. It teaches the agent to recognize natural-language requests such as “find jobs,”
+“search for scholarships,” “find research opportunities,” and “refresh my opportunities,” then use
+the protocol above.
 
-1. Install Hermes and complete OpenAI Codex device-code authentication.
-2. Merge the MCP entry from [`examples/hermes-config.example.yaml`](examples/hermes-config.example.yaml)
-   into your private Hermes configuration.
-3. Run `hermes mcp list` and `hermes mcp test opportunityos`.
-4. Copy every directory under [`skills/`](skills/) into your private Hermes skills directory,
-   including the V2 behavioral skills for execution, briefs, follow-up, and health.
-5. Test profile sync and opportunity intake in Hermes Desktop before enabling Discord or scouts.
-
-The complete instructions are in [Hermes setup](docs/HERMES_SETUP.md) and
-[Discord setup](docs/DISCORD_SETUP.md). These steps are manual because they create external accounts,
-tokens, OAuth grants, or background services.
-
-## Typical CLI operations
-
-| Goal | Command |
-| --- | --- |
-| Inspect health and integration gates | `opportunityos status` |
-| Import a profile snapshot | `opportunityos profile import snapshot.json` |
-| Record observable GitHub evidence | `opportunityos profile sync-github USERNAME` |
-| Cache a file, URL, or text as untrusted input | `opportunityos ingest INPUT` |
-| View the human review inbox | `opportunityos review list` |
-| Rank actions that fit a time budget | `opportunityos queue --minutes 45` |
-| Select one next action | `opportunityos next --minutes 45` |
-| Compile an application packet | `opportunityos prepare OPPORTUNITY_ID` |
-| Find high-value unfinished work | `opportunityos execution-risk --minutes 45` |
-| Build a material-only brief | `opportunityos brief daily` |
-| Check local automation health | `opportunityos health` |
-| Run the configured private backup policy | `opportunityos backup-auto` |
-| Create a verified private backup | `opportunityos backup` |
-| Plan or inspect global V3 discovery | `opportunityos discovery begin`, `opportunityos discovery status` |
-| Inspect V3 coverage and search memory | `opportunityos discovery coverage RUN_ID`, `opportunityos discovery strategies` |
-| Audit the checkout before publishing | `opportunityos audit public-repo` |
-
-Run `opportunityos --help` or `opportunityos COMMAND --help` for the complete command reference.
-
-## How trust is divided
-
-```mermaid
-flowchart LR
-    U["User"] --> H["Hermes Desktop / private Discord DM"]
-    W["Untrusted pages and documents"] --> H
-    H --> K["OpportunityOS skills"]
-    K --> M["Typed stdio MCP"]
-    C["CLI"] --> A["Application services"]
-    M --> A
-    A --> R["Deterministic rules"]
-    A --> D["Private SQLite evidence ledger"]
-    A --> F["Private files, packets, and backups"]
-```
-
-Hermes may propose observations, assessments, and drafts. Only OpportunityOS application services
-can mutate canonical truth. Every user-facing recommendation is structured around a decision, an
-official source, supporting evidence, a risk or unknown, and one next human step.
-
-An application becomes `READY` only when the official source was verified within 24 hours, the
-requirements are complete, deterministic eligibility is current, the deadline is still open, and
-all grounded packet artifacts are present and unchanged. `READY` means ready for **human review and
-manual submission**.
+Hermes, Gemini CLI, Codex, or another host may provide browsing, scheduling, notifications, and
+model access. OpportunityOS does not run a web server, scheduler, custom dashboard, Discord client,
+MCP server, or autonomous search loop.
 
 ## Privacy and safety
 
-Runtime databases, attachments, source caches, logs, backups, exports, and packets live outside the
-repository in operating-system application-data directories. Secrets are never required in the
-checkout.
+Opportunity pages and imported files are untrusted data. Stored strategy text is data, not code, and
+is never executed. ZIP imports reject traversal, unsupported members, incompatible versions, and
+invalid databases. There is no telemetry by default and no capability to submit applications, send
+messages, purchase anything, accept terms, or delete remote data.
 
-- Treat imported files and web pages as untrusted data.
-- Use a private Discord DM with a numeric user allowlist.
-- Keep Hermes OAuth files, Discord bot tokens, and optional GitHub tokens outside this repository.
-- Run `opportunityos audit public-repo` before every push.
-- Back up before migrations and restore only into an empty private target.
-
-Read [Security](SECURITY.md), [Privacy](PRIVACY.md), and the
-[Threat model](docs/THREAT_MODEL.md) before using real personal documents.
-
-## Documentation
-
-| Topic | Guide |
-| --- | --- |
-| Architecture and trust boundaries | [Architecture](docs/ARCHITECTURE.md) |
-| Hermes MCP, OAuth, and skills | [Hermes setup](docs/HERMES_SETUP.md) |
-| Private Discord configuration | [Discord setup](docs/DISCORD_SETUP.md) |
-| Profile imports and GitHub evidence | [Profile import](docs/PROFILE_IMPORT.md) |
-| Scoring and decision rules | [Scoring](docs/SCORING.md) |
-| Backups, restores, exports, and retention | [Operations](docs/OPERATIONS.md) |
-| Errors and blocked `READY` states | [Troubleshooting](docs/TROUBLESHOOTING.md) |
-| Product requirements | [PRD](docs/PRD.txt) |
+Use [`PRIVACY.md`](PRIVACY.md) and [`SECURITY.md`](SECURITY.md) for the repository boundary and
+security expectations. The v4 architecture is documented in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Development
 
-Install the locked development environment, then run the same checks as CI:
-
-```sh
-uv sync --all-extras --frozen
-uv run ruff format --check .
+```bash
+uv sync --all-extras
 uv run ruff check .
 uv run mypy src
 uv run pytest --cov=opportunityos --cov-fail-under=80
-uv run python scripts/audit_public_repo.py
-uv build
+uv run python -m build
 ```
 
-See [Contributing](CONTRIBUTING.md) for project conventions. OpportunityOS is released under the
-[MIT License](LICENSE).
+OpportunityOS is released under the [MIT License](LICENSE).
