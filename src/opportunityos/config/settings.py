@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from platformdirs import PlatformDirs
@@ -99,6 +99,58 @@ class DiscoverySettings(BaseModel):
         return self
 
 
+class PersonalSourceSettings(BaseModel):
+    enabled: bool = True
+    mode: Literal["disabled", "continuous"] = "continuous"
+    initial_lookback_days: int = Field(default=365, ge=1, le=3650)
+    max_records_per_run: int = Field(default=250, ge=1, le=5000)
+
+
+class ChatGPTSourceSettings(BaseModel):
+    enabled: bool = True
+    mode: Literal["disabled", "snapshot_only", "continuous"] = "continuous"
+    initial_lookback_days: int = Field(default=365, ge=1, le=3650)
+    max_records_per_run: int = Field(default=250, ge=1, le=5000)
+    incremental_sync: bool = True
+    scope: dict[str, bool] = Field(
+        default_factory=lambda: {
+            "conversations": True,
+            "memory": True,
+            "files": False,
+        }
+    )
+
+
+class ReconciliationSettings(BaseModel):
+    materiality_threshold: float = Field(default=0.65, ge=0, le=1)
+    preserve_history: bool = True
+    quiet_exact_agreement: bool = True
+
+
+class ProfileIntelligenceSettings(BaseModel):
+    enabled: bool = True
+    timezone: str = "America/Chicago"
+    schedule: str = "05:00"
+    max_duration_seconds: int = Field(default=1800, ge=60, le=86400)
+    max_model_calls: int = Field(default=60, ge=0, le=2000)
+    review_digest_max_items: int = Field(default=10, ge=1, le=100)
+    require_review_for_new_material_facts: bool = True
+    github: PersonalSourceSettings = Field(default_factory=PersonalSourceSettings)
+    gmail: PersonalSourceSettings = Field(default_factory=PersonalSourceSettings)
+    chatgpt: ChatGPTSourceSettings = Field(default_factory=ChatGPTSourceSettings)
+    reconciliation: ReconciliationSettings = Field(default_factory=ReconciliationSettings)
+
+    @model_validator(mode="after")
+    def validate_schedule(self) -> ProfileIntelligenceSettings:
+        parts = self.schedule.split(":")
+        if len(parts) != 2 or any(not part.isdigit() for part in parts):
+            raise ValueError("Profile intelligence schedule must use HH:MM")
+        hour, minute = (int(part) for part in parts)
+        if hour > 23 or minute > 59:
+            raise ValueError("Profile intelligence schedule must use a valid time")
+        return self
+
+
 class AutoPrepareSettings(BaseModel):
     enabled: bool = True
     score_threshold: float = Field(default=90, ge=0, le=100)
@@ -164,6 +216,9 @@ class Settings(BaseModel):
     automation: AutomationSettings = Field(default_factory=AutomationSettings)
     scouts: ScoutSettings = Field(default_factory=ScoutSettings)
     discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
+    profile_intelligence: ProfileIntelligenceSettings = Field(
+        default_factory=ProfileIntelligenceSettings
+    )
     auto_prepare: AutoPrepareSettings = Field(default_factory=AutoPrepareSettings)
     execution: ExecutionSettings = Field(default_factory=ExecutionSettings)
     notifications: NotificationSettings = Field(default_factory=NotificationSettings)

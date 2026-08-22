@@ -17,8 +17,10 @@ class SourceType(StrEnum):
     LOCAL_DOCUMENT = "local_document"
     CHATGPT_SNAPSHOT = "chatgpt_snapshot"
     EMAIL_IMPORT = "email_import"
+    GMAIL_API = "gmail_api"
     HISTORY = "opportunityos_history"
     MODEL_INFERENCE = "model_inference"
+    CHATGPT_CONTINUOUS = "chatgpt_continuous"
 
 
 class OfficialStatus(StrEnum):
@@ -137,13 +139,16 @@ class ObservationInput(BaseModel):
     field_path: str = Field(min_length=1, max_length=300)
     value: Any
     value_type: str = Field(default="json", max_length=50)
-    assertion_kind: Literal["reported", "observed", "inferred"] = "reported"
+    assertion_kind: str = Field(default="reported", min_length=1, max_length=100)
     source_id: str
     evidence_locator: str = Field(default="", max_length=1000)
     extraction_confidence: float = Field(ge=0, le=1)
     effective_from: datetime | None = None
     effective_until: datetime | None = None
     observed_at: datetime
+    source_event_at: datetime | None = None
+    subject_identity: str = Field(default="user", min_length=1, max_length=100)
+    content_fingerprint: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     extractor_model: str | None = Field(default=None, max_length=200)
     extraction_schema_version: str = "1.0"
 
@@ -313,6 +318,64 @@ class DiscoverySourceCheckInput(BaseModel):
     preferred_method: str = Field(default="direct", min_length=1, max_length=100)
     disabled: bool = False
     disabled_reason: str | None = Field(default=None, max_length=500)
+
+
+class PersonalSourceType(StrEnum):
+    GITHUB = "github"
+    GMAIL = "gmail"
+    CHATGPT = "chatgpt"
+
+
+class PersonalObservationProposal(BaseModel):
+    field_path: str = Field(min_length=1, max_length=300)
+    value: Any
+    value_type: str = Field(default="json", max_length=50)
+    assertion_kind: str = Field(default="reported", min_length=1, max_length=100)
+    evidence_locator: str = Field(default="", max_length=1000)
+    extraction_confidence: float = Field(ge=0, le=1)
+    effective_from: datetime | None = None
+    effective_until: datetime | None = None
+    source_event_at: datetime | None = None
+    observed_at: datetime
+    subject_identity: str = Field(default="user", min_length=1, max_length=100)
+    content_fingerprint: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    extractor_model: str | None = Field(default=None, max_length=200)
+    extraction_schema_version: str = Field(default="1.0", max_length=50)
+
+
+class PersonalSourceRecordInput(BaseModel):
+    locator: str = Field(min_length=1, max_length=2048)
+    display_name: str = Field(min_length=1, max_length=300)
+    content_fingerprint: str = Field(pattern=r"^[a-f0-9]{64}$")
+    source_event_at: datetime | None = None
+    observed_at: datetime
+    subject_identity: str = Field(default="user", min_length=1, max_length=100)
+    evidence_excerpt: str = Field(default="", max_length=5000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    observations: list[PersonalObservationProposal] = Field(default_factory=list, max_length=100)
+
+
+class PersonalSourceBatchInput(BaseModel):
+    source_type: PersonalSourceType
+    records: list[PersonalSourceRecordInput] = Field(default_factory=list, max_length=500)
+    cursor_after: str | None = Field(default=None, max_length=500)
+    high_water_mark: datetime | None = None
+    records_inspected: int = Field(default=0, ge=0, le=10_000)
+    model_calls: int = Field(default=0, ge=0, le=10_000)
+    failed: bool = False
+    failure_detail: str | None = Field(default=None, max_length=500)
+
+
+class ProfileIntelligenceFinishInput(BaseModel):
+    delivery_result: Literal["silent", "material", "blocked", "partial"] = "silent"
+    errors: list[str] = Field(default_factory=list, max_length=50)
+
+
+class PersonalSourceControlInput(BaseModel):
+    source_type: PersonalSourceType
+    enabled: bool
+    mode: Literal["disabled", "continuous", "snapshot_only"] | None = None
+    reason: str = Field(default="user control", max_length=500)
 
 
 class ResultEnvelope(BaseModel):

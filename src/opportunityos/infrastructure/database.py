@@ -98,13 +98,16 @@ class ObservationRow(Base, TimestampMixin):
     field_path: Mapped[str] = mapped_column(String(300), index=True, nullable=False)
     typed_value: Mapped[Any] = mapped_column(JSON, nullable=False)
     value_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    assertion_kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    assertion_kind: Mapped[str] = mapped_column(String(100), nullable=False)
     source_id: Mapped[str] = mapped_column(ForeignKey("source_records.id"), nullable=False)
     evidence_locator: Mapped[str] = mapped_column(Text, nullable=False)
     extraction_confidence: Mapped[float] = mapped_column(Float, nullable=False)
     effective_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     effective_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    source_event_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    subject_identity: Mapped[str] = mapped_column(String(100), default="user", nullable=False)
+    content_fingerprint: Mapped[str | None] = mapped_column(String(64), index=True)
     extractor_model: Mapped[str | None] = mapped_column(String(200))
     extraction_schema_version: Mapped[str] = mapped_column(String(50), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
@@ -330,6 +333,58 @@ class ScoutRunRow(Base):
     branch_id: Mapped[str | None] = mapped_column(
         ForeignKey("search_branches.id", use_alter=True), index=True
     )
+
+
+class ProfileIntelligenceRunRow(Base):
+    __tablename__ = "profile_intelligence_runs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    profile_projection_version_before: Mapped[int] = mapped_column(Integer, nullable=False)
+    profile_projection_version_after: Mapped[int | None] = mapped_column(Integer)
+    enabled_sources: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    completed_sources: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    blocked_sources: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False)
+    counters: Mapped[dict[str, int]] = mapped_column(JSON, nullable=False)
+    errors: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    delivery_result: Mapped[str | None] = mapped_column(String(30))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PersonalSourceSyncStateRow(Base):
+    __tablename__ = "personal_source_sync_states"
+    source_type: Mapped[str] = mapped_column(String(30), primary_key=True)
+    configured_mode: Mapped[str] = mapped_column(String(30), nullable=False)
+    configured_scope: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    actual_capabilities: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    authorization_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    cursor: Mapped[str | None] = mapped_column(String(500))
+    high_water_mark: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_record_timestamp: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    records_inspected: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    candidate_observations: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    review_items_created: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    canonical_changes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    consecutive_failures: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    detail_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ReconciliationBatchRow(Base):
+    __tablename__ = "reconciliation_batches"
+    __table_args__ = (UniqueConstraint("delivery_fingerprint"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    profile_intelligence_run_id: Mapped[str] = mapped_column(
+        ForeignKey("profile_intelligence_runs.id"), index=True
+    )
+    material_item_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    delivery_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class DiscoveryRunRow(Base):

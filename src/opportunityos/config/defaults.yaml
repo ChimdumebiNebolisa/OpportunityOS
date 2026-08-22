@@ -80,6 +80,38 @@ discovery:
   saturation_no_novel_queries: 8
   saturation_no_qualified_queries: 15
   saturation_duplicate_rate: 0.80
+profile_intelligence:
+  enabled: true
+  timezone: America/Chicago
+  schedule: "05:00"
+  max_duration_seconds: 1800
+  max_model_calls: 60
+  review_digest_max_items: 10
+  require_review_for_new_material_facts: true
+  github:
+    enabled: true
+    mode: continuous
+    initial_lookback_days: 365
+    max_records_per_run: 250
+  gmail:
+    enabled: true
+    mode: continuous
+    initial_lookback_days: 180
+    max_records_per_run: 250
+  chatgpt:
+    enabled: true
+    mode: continuous
+    initial_lookback_days: 365
+    max_records_per_run: 250
+    incremental_sync: true
+    scope:
+      conversations: true
+      memory: true
+      files: false
+  reconciliation:
+    materiality_threshold: 0.65
+    preserve_history: true
+    quiet_exact_agreement: true
 automation:
   enabled: true
 auto_prepare:
