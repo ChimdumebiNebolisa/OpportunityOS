@@ -11,7 +11,13 @@ import typer
 
 from opportunityos.v4.export import export_state, import_state
 from opportunityos.v4.models import ProfileDocument
-from opportunityos.v4.runtime import RuntimePaths, RuntimeStateError, read_yaml, write_yaml
+from opportunityos.v4.runtime import (
+    RuntimePaths,
+    RuntimeStateError,
+    merge_mappings,
+    read_yaml,
+    write_yaml,
+)
 from opportunityos.v4.store import HistoryStore
 
 app = typer.Typer(
@@ -63,16 +69,6 @@ def _json_file(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise typer.BadParameter("JSON input must be an object")
     return value
-
-
-def _merge(base: dict[str, Any], update: dict[str, Any]) -> dict[str, Any]:
-    result = dict(base)
-    for key, value in update.items():
-        if isinstance(value, dict) and isinstance(result.get(key), dict):
-            result[key] = _merge(result[key], value)
-        else:
-            result[key] = value
-    return result
 
 
 @app.command("init")
@@ -136,7 +132,7 @@ def profile_patch(
 ) -> None:
     patch = _json_file(patch_json)
     paths, _ = _store()
-    updated = _merge(read_yaml(paths.profile), patch)
+    updated = merge_mappings(read_yaml(paths.profile), patch)
     ProfileDocument.model_validate(updated)
     write_yaml(paths.profile, updated)
     _format({"schema_version": 1, "updated": True, "profile": updated}, output_format)
@@ -155,7 +151,7 @@ def policy_patch(
 ) -> None:
     patch = _json_file(policy_json)
     paths, _ = _store()
-    updated = _merge(read_yaml(paths.policy), patch)
+    updated = merge_mappings(read_yaml(paths.policy), patch)
     write_yaml(paths.policy, updated)
     _format({"schema_version": 1, "updated": True, "policy": updated}, output_format)
 

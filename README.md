@@ -80,8 +80,7 @@ opportunityos import opportunityos-export.zip
 ```
 
 All agent-facing operations are non-interactive and support structured JSON output. Exit status is
-zero for success, one for validation/user errors, two for local state errors, three for incompatible
-state versions, and four for explicit policy enforcement failures.
+zero for success and nonzero for validation, user-input, or local-state failures.
 
 ## Hermes integration
 

@@ -17,6 +17,16 @@ class RuntimeStateError(RuntimeError):
     """Raised when private runtime state is unsafe or invalid."""
 
 
+def merge_mappings(base: dict[str, Any], update: dict[str, Any]) -> dict[str, Any]:
+    result = dict(base)
+    for key, value in update.items():
+        if isinstance(value, dict) and isinstance(result.get(key), dict):
+            result[key] = merge_mappings(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
 def _reject_reparse_traversal(path: Path) -> None:
     current = Path(path.absolute().anchor)
     for part in path.absolute().parts[1:]:
@@ -66,15 +76,10 @@ class RuntimePaths:
     def database(self) -> Path:
         return self.root / "state.db"
 
-    @property
-    def export_directory(self) -> Path:
-        return self.root / "exports"
-
     def ensure_root(self) -> None:
         _reject_reparse_traversal(self.root)
         _outside_repository(self.root, self.repository)
         self.root.mkdir(parents=True, exist_ok=True)
-        self.export_directory.mkdir(exist_ok=True)
 
     def ensure_initialized(self) -> None:
         self.ensure_root()
@@ -118,14 +123,14 @@ class RuntimePaths:
                 write_yaml(path, value)
 
 
-def read_yaml(path: Path, *, expected_mapping: bool = True) -> dict[str, Any]:
+def read_yaml(path: Path) -> dict[str, Any]:
     try:
         value = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, yaml.YAMLError) as error:
         raise RuntimeStateError(f"Could not read {path.name}: {error}") from error
-    if expected_mapping and not isinstance(value, dict):
+    if not isinstance(value, dict):
         raise RuntimeStateError(f"{path.name} must contain a YAML mapping")
-    return value if isinstance(value, dict) else {}
+    return value
 
 
 def write_yaml(path: Path, value: dict[str, Any]) -> None:

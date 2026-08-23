@@ -1,8 +1,10 @@
 # Privacy
 
-OpportunityOS is local-first. Profile, policy, strategy, history, exports, and logs live under the
-operating system’s private per-user application-data directory, outside this repository. Set
+OpportunityOS is local-first. Profile, policy, strategy, and history live under the operating
+system’s private per-user application-data directory, outside this repository. Set
 `OPPORTUNITYOS_DATA_DIR` to choose another private location; it must not be inside the checkout.
+Exports are written to the destination selected by the caller, which defaults to the current
+directory, and should also be kept outside the checkout.
 
 The public repository contains only code, generic defaults, documentation, and synthetic fixtures.
 Never commit real profile data, opportunity history, exports, credentials, logs, or private paths.

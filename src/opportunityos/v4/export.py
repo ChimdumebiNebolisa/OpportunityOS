@@ -96,9 +96,7 @@ def import_state(paths: RuntimePaths, source: Path) -> dict[str, Any]:
                 target = staging / name
                 target.write_bytes(archive.read(name))
         for name in ("profile.yaml", "policy.yaml", "strategy.yaml"):
-            value = read_yaml(staging / name)
-            if not isinstance(value, dict):
-                raise RuntimeStateError(f"Imported {name} is invalid")
+            read_yaml(staging / name)
         _validate_database(staging / "state.db")
         for name in EXPORT_FILES[1:]:
             os.replace(staging / name, paths.root / name)

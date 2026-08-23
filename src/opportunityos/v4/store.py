@@ -14,7 +14,7 @@ from typing import Any, cast
 from .dedupe import fingerprint, normalize_url
 from .models import Candidate, FeedbackInput, StrategyProposal
 from .policy import evaluate_candidate
-from .runtime import RuntimePaths, read_yaml, write_yaml
+from .runtime import RuntimePaths, merge_mappings, read_yaml, write_yaml
 
 SCHEMA_VERSION = 1
 
@@ -383,8 +383,7 @@ class HistoryStore:
                 raise ValueError("Run not found")
             counts = connection.execute(
                 """SELECT COUNT(*) AS candidates,
-                SUM(CASE WHEN outcome IN ('new', 'material_change') THEN 1 ELSE 0 END) AS new_count,
-                SUM(CASE WHEN outcome = 'policy_rejected' THEN 1 ELSE 0 END) AS rejected
+                SUM(CASE WHEN outcome IN ('new', 'material_change') THEN 1 ELSE 0 END) AS new_count
                 FROM discoveries WHERE run_id = ?""",
                 (run_id,),
             ).fetchone()
@@ -438,7 +437,7 @@ class HistoryStore:
                 (category,),
             ).fetchall()
             organizations = connection.execute(
-                """SELECT organization, COUNT(*) AS count FROM opportunities
+                """SELECT organization FROM opportunities
                 WHERE category = ? GROUP BY organization
                 ORDER BY MAX(last_seen_at) DESC LIMIT 20""",
                 (category,),
@@ -555,11 +554,11 @@ class HistoryStore:
         updated = json.loads(_json(current))
         if proposal.scope in {"global", "*"}:
             target = dict(updated.get("global", {}))
-            target = _deep_merge(target, proposal.changes)
+            target = merge_mappings(target, proposal.changes)
             updated["global"] = target
         else:
             categories = dict(updated.get("categories", {}))
-            categories[proposal.scope] = _deep_merge(
+            categories[proposal.scope] = merge_mappings(
                 dict(categories.get(proposal.scope, {})), proposal.changes
             )
             updated["categories"] = categories
@@ -632,13 +631,3 @@ class HistoryStore:
             "rolled_back_to": revision,
             "strategy": target,
         }
-
-
-def _deep_merge(base: dict[str, Any], update: dict[str, Any]) -> dict[str, Any]:
-    result = dict(base)
-    for key, value in update.items():
-        if isinstance(value, dict) and isinstance(result.get(key), dict):
-            result[key] = _deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result

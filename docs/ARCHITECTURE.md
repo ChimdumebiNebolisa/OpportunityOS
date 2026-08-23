@@ -22,7 +22,7 @@ research, query generation, and user-facing explanation. OpportunityOS owns four
 `OPPORTUNITYOS_DATA_DIR` available for tests and portable installations. The root must not be inside
 the repository and cannot be reached through a symlink or Windows junction.
 
-The public checkout contains schemas, generic defaults, reference guidance, and synthetic tests.
+The public checkout contains generic defaults, reference guidance, and synthetic tests.
 It must not contain a real profile, policy, strategy, history database, export, or secret.
 
 ## Deterministic core
